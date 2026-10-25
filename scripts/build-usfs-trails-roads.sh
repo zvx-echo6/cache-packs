@@ -7,7 +7,7 @@ RGDB="$(usfs_fetch Trans_RoadCore_FS "$W/roads")";       RL="$(gdb_layer "$RGDB"
 to_seq "$TGDB" "$TL" "$W/trails.geojsonl" trails -select TRAIL_NAME,TRAIL_NO,TRAIL_TYPE,TRAIL_CLASS,TRAIL_SURFACE,MANAGING_ORG,NATIONAL_TRAIL_DESIGNATION,ATTRIBUTESUBSET,ALLOWED_TERRA_USE,ALLOWED_SNOW_USE,HIKER_PEDESTRIAN_MANAGED,PACK_SADDLE_MANAGED,BICYCLE_MANAGED,MOTORCYCLE_MANAGED,ATV_MANAGED,FOURWD_MANAGED,SNOWMOBILE_MANAGED,GIS_MILES
 to_seq "$RGDB" "$RL" "$W/roads.geojsonl" roads -select NAME,ID,SYSTEM,JURISDICTION,ROUTE_STATUS,OPER_MAINT_LEVEL,SURFACE_TYPE,SYMBOL_CODE,OPENFORUSETO,MANAGING_ORG,GIS_MILES
 wc -l "$W"/*.geojsonl
-tippecanoe -o "$W/usfs.pmtiles" -Z6 -z14 --drop-densest-as-needed --read-parallel --force \
+tippecanoe -q -o "$W/usfs.pmtiles" -Z6 -z14 --drop-densest-as-needed --read-parallel --force \
   --clip-bounding-box="$BBOX" \
   -L trails:"$W/trails.geojsonl" -L roads:"$W/roads.geojsonl"
 ls -l "$W/usfs.pmtiles"
