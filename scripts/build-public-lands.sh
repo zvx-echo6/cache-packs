@@ -22,7 +22,7 @@ ogr2ogr -f GeoJSONSeq "$W/pad.geojsonl" "$GDB" "$FC" \
   -nln public_lands
 wc -l "$W/pad.geojsonl"
 
-tippecanoe -o "$W/public-lands.pmtiles" -l public_lands -Z4 -z12 \
+tippecanoe -q -o "$W/public-lands.pmtiles" -l public_lands -Z4 -z12 \
   --drop-smallest-as-needed --simplification=2 --read-parallel --force "$W/pad.geojsonl"
 ls -l "$W/public-lands.pmtiles"
 
