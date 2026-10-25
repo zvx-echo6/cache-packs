@@ -25,6 +25,7 @@ def main():
     p.add_argument("--license", required=True)
     p.add_argument("--interval-days", type=int, required=True)
     p.add_argument("--style-hints", required=True, help="JSON list of {name, attributes}")
+    p.add_argument("--role", required=True, help="app colour role: basemap, public_lands, trails, roads, mvum, blm_routes, ...")
     p.add_argument("--recipe", required=True, help="recipe file name under recipes/")
     p.add_argument("--extra", action="append", default=[], help="path:content-type, uploaded next to the PMTiles")
     a = p.parse_args()
@@ -50,7 +51,7 @@ def main():
         "attribution": a.attribution, "license": a.license,
         "coverage": {"bbox": bbox}, "offline": {"allowed": True},
         "update": {"version": version, "interval_days": a.interval_days},
-        "style_hints": {"layers": json.loads(a.style_hints)},
+        "style_hints": {"role": a.role, "layers": json.loads(a.style_hints)},
         "recipe": f"https://github.com/zvx-echo6/cache-packs/blob/main/recipes/{a.recipe}",
     }
     if extras:

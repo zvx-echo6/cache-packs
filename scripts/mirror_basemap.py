@@ -101,7 +101,7 @@ def finalize():
                   "source": {"type": "pmtiles", "url": f"{base}/{key}", "minzoom": 0, "maxzoom": 15, "tile_format": "mvt"},
                   "attribution": "(c) OpenStreetMap contributors",
                   "license": "ODbL 1.0 Produced Work (OpenStreetMap data); Protomaps basemap tiles",
-                  "coverage": {"bbox": [-180, -85.0511, 180, 85.0511]}, "offline": {"allowed": True, "limit": None},
+                  "coverage": {"bbox": [-180, -85.0511, 180, 85.0511]}, "offline": {"allowed": True, "limit": None}, "style_hints": {"role": "basemap"},
                   "update": {"version": date, "interval_days": 30},
                   "recipe": "https://github.com/zvx-echo6/cache-packs/blob/main/recipes/basemap-planet.md"}
     with tempfile.TemporaryDirectory() as td:
