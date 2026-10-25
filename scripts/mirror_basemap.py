@@ -50,20 +50,43 @@ def copy():
     b = build(); key = objkey(b)
     if remote_size(key) == b["size"]:
         print("object already in R2 with the right size; skipping copy"); return
+    rclone("backend", "cleanup", f"r2:{BUCKET}/basemap/", "-o", "max-age=1h", check=False)   # abandoned multipart parts from failed runs
     md5, b3 = hashlib.md5(), blake3.blake3(max_threads=blake3.blake3.AUTO)
-    curl = subprocess.Popen(["curl", "-fL", "--retry", "5", "--retry-all-errors", "-sS", SRC + b["key"]], stdout=subprocess.PIPE)
     rc = subprocess.Popen(["rclone", "rcat", f"r2:{BUCKET}/{key}", "--s3-chunk-size", "128M", "--s3-upload-concurrency", "8",
                            "--header-upload", "Content-Type: application/vnd.pmtiles", "--header-upload", f"Cache-Control: {CACHE}"],
                           stdin=subprocess.PIPE, env=ENV)
+    # Ranged download, 6 chunks of 128 MiB in flight, written to the pipe in order. A failed chunk is re-fetched on
+    # its own byte range, so a dropped connection never repeats or skips bytes (the stream is hashed as it passes).
+    from collections import deque
+    from concurrent.futures import ThreadPoolExecutor
+    size, CH, url = b["size"], 128 << 20, SRC + b["key"]
+
+    def fetch(off):
+        end = min(off + CH, size) - 1
+        for attempt in range(10):
+            try:
+                req = urllib.request.Request(url, headers={"Range": f"bytes={off}-{end}", "User-Agent": "cache-packs"})
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    data = r.read()
+                if r.status == 206 and len(data) == end - off + 1:
+                    return data
+                raise IOError(f"short or unexpected response {r.status} {len(data)}")
+            except Exception as e:
+                print(f"chunk {off}: retry {attempt}: {str(e)[:120]}", flush=True); time.sleep(5 * (attempt + 1))
+        raise SystemExit("chunk failed")
+
     total, t0, last = 0, time.time(), time.time()
-    while True:
-        chunk = curl.stdout.read(8 << 20)
-        if not chunk: break
-        md5.update(chunk); b3.update(chunk); rc.stdin.write(chunk); total += len(chunk)
-        if time.time() - last > 300:
-            last = time.time(); print(f"{total/1e9:.1f} GB in {last-t0:.0f}s ({total/(last-t0)/1e6:.0f} MB/s)", flush=True)
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        window, nxt = deque(), 0
+        while nxt < size or window:
+            while nxt < size and len(window) < 6:
+                window.append(ex.submit(fetch, nxt)); nxt += CH
+            chunk = window.popleft().result()
+            md5.update(chunk); b3.update(chunk); rc.stdin.write(chunk); total += len(chunk)
+            if time.time() - last > 300:
+                last = time.time(); print(f"{total/1e9:.1f} GB in {last-t0:.0f}s ({total/(last-t0)/1e6:.0f} MB/s)", flush=True)
     rc.stdin.close()
-    if curl.wait() != 0 or rc.wait() != 0:
+    if rc.wait() != 0:
         rclone("deletefile", f"r2:{BUCKET}/{key}", check=False); sys.exit("transfer failed")
     dt = time.time() - t0
     print(f"copied {total} bytes in {dt:.0f}s ({total/dt/1e6:.0f} MB/s)")
