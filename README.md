@@ -19,14 +19,15 @@ The packs are built from public open data and published as GitHub Release assets
 
 ## Status
 
-First batch built for Idaho (bbox -118.0,41.5,-110.3,49.5, 50 km buffer) on 2026-10-25. Each recipe has a workflow (run by hand or on a schedule) and a document in `recipes/`.
+Layers are national builds (the whole US, one file per layer); routing packs are per region. Built 2026-10-25. The tile host also carries `catalogue.json`, which lists the layers and the routing packs.
 
 | Recipe | Kind | Output |
 |---|---|---|
-| [public-lands](recipes/public-lands.md) | PMTiles layer (USGS PAD-US 4.1) | built, 23 MB |
-| [usfs-trails-roads](recipes/usfs-trails-roads.md) | PMTiles layer (USFS EDW) | built, 113 MB |
-| [mvum](recipes/mvum.md) | PMTiles layer plus GeoJSON-seq (USFS MVUM) | built, 76 MB plus 33 MB |
-| [blm-routes](recipes/blm-routes.md) | PMTiles layer (BLM GTLF public datasets) | built, 15 MB |
-| [valhalla-routing](recipes/valhalla-routing.md) | Release assets (Valhalla 3.7.0 tiles) | release `idaho-2026-10-25`, 222 MB |
+| [public-lands](recipes/public-lands.md) | PMTiles layer (USGS PAD-US 4.1), z4-z12 | built, 392 MB |
+| [usfs-trails-roads](recipes/usfs-trails-roads.md) | PMTiles layer (USFS EDW), z6-z14 | built, 500 MB |
+| [mvum](recipes/mvum.md) | PMTiles layer plus GeoJSON-seq (USFS MVUM), z8-z14 | built |
+| [blm-routes](recipes/blm-routes.md) | PMTiles layer (BLM GTLF public datasets), z6-z14 | built, 98 MB |
+| [valhalla-routing](recipes/valhalla-routing.md) | Release assets, one release per region (Valhalla 3.7.0) | Idaho, Montana, Utah, Oregon, Washington, Nevada, Wyoming |
+| [basemap-planet](recipes/basemap-planet.md) | Protomaps v4 planet base map, z0-z15, copied to the tile host | see the catalogue |
 
-Layers are published to the tile host with a layer definition each and a `catalogue.json` listing them. Not yet built: other regions, places, the off-road data file, land cover.
+Not yet built: places, the off-road data file.

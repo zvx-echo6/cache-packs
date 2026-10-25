@@ -25,10 +25,10 @@ tippecanoe -o usfs.pmtiles -Z6 -z14 --drop-densest-as-needed --read-parallel --f
 
 ## Parameters
 
-`region` (slug, default `idaho`) and `bbox` (`west,south,east,north`, default `-118.0,41.5,-110.3,49.5`, Idaho with a 50 km buffer). The layer id is `usfs-trails-roads-<region>`. Run it from Actions: `gh workflow run layer-usfs-trails-roads -f region=<slug> -f bbox=<w,s,e,n>`. It also runs on a schedule with the defaults.
+`region` (default `us`, the national build: no area filter, layer id without a suffix) and `bbox`. Any other region slug is a test run: `bbox` (`west,south,east,north`, default `-118.0,41.5,-110.3,49.5`, Idaho with a 50 km buffer) filters and clips, and the layer id gets `-<region>`. Run it from Actions: `gh workflow run WF` for the national build, or `gh workflow run WF -f region=<slug> -f bbox=<w,s,e,n>` for a test. It also runs monthly or quarterly on a schedule.
 
 ## Output
 
-`<id>/<id>.pmtiles` and `<id>/<id>.json` (layer definition, format 1) in the R2 bucket, and an entry in `catalogue.json`. Content types: `application/vnd.pmtiles` and `application/json`; Cache-Control `public, max-age=86400` for data and `public, max-age=300` for JSON. Upload uses the AWS CLI with the R2 endpoint and region `auto`. Tools: GDAL from the Ubuntu 24.04 runner image, tippecanoe 2.79.0 (built from the tag).
+`<id>/<id>.pmtiles` and `<id>/<id>.json` (`<id>` is the recipe name for the national build) (layer definition, format 1) in the R2 bucket, and an entry in `catalogue.json`. Content types: `application/vnd.pmtiles` and `application/json`; Cache-Control `public, max-age=86400` for data and `public, max-age=300` for JSON. Upload uses the AWS CLI with the R2 endpoint and region `auto`. Tools: GDAL from the Ubuntu 24.04 runner image, tippecanoe 2.79.0 (built from the tag).
 
 Scripts: `scripts/build-usfs-trails-roads.sh`, `scripts/publish_layer.py`, `scripts/lib.sh`.
