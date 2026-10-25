@@ -1,0 +1,41 @@
+name: layer-mvum
+
+# Builds the layer and publishes it to R2. Runs only by hand or on schedule, never on pull requests.
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Region slug used in the layer id
+        default: idaho
+      bbox:
+        description: Region bounding box west,south,east,north
+        default: "-118.0,41.5,-110.3,49.5"
+  schedule:
+    - cron: "17 5 12 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r2-catalogue
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install tools
+        run: scripts/setup-tools.sh
+      - name: Build and publish
+        env:
+          REGION: ${{ inputs.region || 'idaho' }}
+          BBOX: ${{ inputs.bbox || '-118.0,41.5,-110.3,49.5' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        run: scripts/build-mvum.sh

@@ -1,0 +1,31 @@
+name: valhalla-routing
+
+# Builds Valhalla routing tiles for a region and publishes them as GitHub Release assets.
+# Runs only by hand or on schedule, never on pull requests.
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Region slug used in the release tag
+        default: idaho
+      geofabrik_path:
+        description: Extract path on download.geofabrik.de, without -latest.osm.pbf
+        default: north-america/us/idaho
+  schedule:
+    - cron: "43 4 20 */3 *"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build tiles and publish release
+        env:
+          REGION: ${{ inputs.region || 'idaho' }}
+          GEOFABRIK_PATH: ${{ inputs.geofabrik_path || 'north-america/us/idaho' }}
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/build-valhalla-routing.sh
