@@ -15,5 +15,5 @@ usfs_fetch() {
 # to_seq GDB LAYER OUT NAME [extra ogr2ogr args] -> clipped GeoJSON-seq in WGS84
 to_seq() {
   ogr2ogr -f GeoJSONSeq "$3" "$1" "$2" -t_srs EPSG:4326 -dim XY -nlt PROMOTE_TO_MULTI \
-    -spat "$BB_W" "$BB_S" "$BB_E" "$BB_N" -spat_srs EPSG:4326 -nln "$4" "${@:5}"
+    "${SPAT[@]}" -nln "$4" "${@:5}"
 }

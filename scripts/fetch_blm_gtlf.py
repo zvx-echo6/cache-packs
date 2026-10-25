@@ -40,6 +40,7 @@ def get(url, data):
 
 
 def main(out):
+    national = os.environ.get("NATIONAL") == "1"
     w, s, e, n = os.environ["BBOX"].split(",")
     total = 0
     with open(out, "w") as fh:
@@ -47,10 +48,12 @@ def main(out):
             url = f"{BASE}/{svc}/FeatureServer/{lid}/query"
             offset, count = 0, 0
             while True:
-                d = get(url, {"where": "1=1", "geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
-                              "inSR": "4326", "spatialRel": "esriSpatialRelIntersects", "outFields": FIELDS,
-                              "outSR": "4326", "orderByFields": "OBJECTID", "resultOffset": offset,
-                              "resultRecordCount": PAGE, "f": "geojson"})
+                q = {"where": "1=1", "outFields": FIELDS, "outSR": "4326", "orderByFields": "OBJECTID",
+                     "resultOffset": offset, "resultRecordCount": PAGE, "f": "geojson"}
+                if not national:
+                    q.update({"geometry": f"{w},{s},{e},{n}", "geometryType": "esriGeometryEnvelope",
+                              "inSR": "4326", "spatialRel": "esriSpatialRelIntersects"})
+                d = get(url, q)
                 feats = d.get("features", [])
                 for f in feats:
                     f["properties"] = {k: v for k, v in (f.get("properties") or {}).items() if v not in (None, "")}

@@ -11,11 +11,11 @@ jq -c '.properties.mvum_kind = "road"' "$W/roads_raw.geojsonl" > "$W/mvum_roads.
 jq -c '.properties.mvum_kind = "trail"' "$W/trails_raw.geojsonl" > "$W/mvum_trails.geojsonl"
 wc -l "$W"/*.geojsonl
 tippecanoe -q -o "$W/mvum.pmtiles" -Z8 -z14 --drop-densest-as-needed --read-parallel --force \
-  --clip-bounding-box="$BBOX" -x OBJECTID -x GLOBALID -x SECURITYID -x SHAPE_LEN -x SHAPE.LEN -x Shape_Length \
+  "${CLIP[@]}" -x OBJECTID -x GLOBALID -x SECURITYID -x SHAPE_LEN -x SHAPE.LEN -x Shape_Length \
   -L mvum_roads:"$W/mvum_roads.geojsonl" -L mvum_trails:"$W/mvum_trails.geojsonl"
 cat "$W/mvum_roads.geojsonl" "$W/mvum_trails.geojsonl" | gzip -9 > "$W/mvum.geojsonl.gz"
 ls -l "$W/mvum.pmtiles" "$W/mvum.geojsonl.gz"
-python3 "$(dirname "$0")/publish_layer.py" --id "mvum-$REGION" \
+python3 "$(dirname "$0")/publish_layer.py" --id "mvum$LAYER_SUFFIX" \
   --title "Motor vehicle use map (MVUM)" \
   --description "Forest Service roads and trails open to motor vehicles, by vehicle class and season." \
   --pmtiles "$W/mvum.pmtiles" --minzoom 8 --maxzoom 14 \

@@ -8,10 +8,10 @@ to_seq "$TGDB" "$TL" "$W/trails.geojsonl" trails -select TRAIL_NAME,TRAIL_NO,TRA
 to_seq "$RGDB" "$RL" "$W/roads.geojsonl" roads -select NAME,ID,SYSTEM,JURISDICTION,ROUTE_STATUS,OPER_MAINT_LEVEL,SURFACE_TYPE,SYMBOL_CODE,OPENFORUSETO,MANAGING_ORG,GIS_MILES
 wc -l "$W"/*.geojsonl
 tippecanoe -q -o "$W/usfs.pmtiles" -Z6 -z14 --drop-densest-as-needed --read-parallel --force \
-  --clip-bounding-box="$BBOX" \
+  "${CLIP[@]}" \
   -L trails:"$W/trails.geojsonl" -L roads:"$W/roads.geojsonl"
 ls -l "$W/usfs.pmtiles"
-python3 "$(dirname "$0")/publish_layer.py" --id "usfs-trails-roads-$REGION" \
+python3 "$(dirname "$0")/publish_layer.py" --id "usfs-trails-roads$LAYER_SUFFIX" \
   --title "Forest Service trails and roads" \
   --description "National Forest System trails and roads from the USFS Enterprise Data Warehouse." \
   --pmtiles "$W/usfs.pmtiles" --minzoom 6 --maxzoom 14 \

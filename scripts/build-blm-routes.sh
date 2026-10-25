@@ -5,9 +5,9 @@ W="$RUNNER_TEMP/blm"; mkdir -p "$W"
 python3 "$(dirname "$0")/fetch_blm_gtlf.py" "$W/blm_routes.geojsonl"
 wc -l "$W/blm_routes.geojsonl"
 tippecanoe -q -o "$W/blm-routes.pmtiles" -l blm_routes -Z6 -z14 --drop-densest-as-needed --read-parallel --force \
-  --clip-bounding-box="$BBOX" "$W/blm_routes.geojsonl"
+  "${CLIP[@]}" "$W/blm_routes.geojsonl"
 ls -l "$W/blm-routes.pmtiles"
-python3 "$(dirname "$0")/publish_layer.py" --id "blm-routes-$REGION" \
+python3 "$(dirname "$0")/publish_layer.py" --id "blm-routes$LAYER_SUFFIX" \
   --title "BLM roads and trails" \
   --description "BLM public roads and trails (GTLF public datasets) with route name, surface and designation." \
   --pmtiles "$W/blm-routes.pmtiles" --minzoom 6 --maxzoom 14 \
