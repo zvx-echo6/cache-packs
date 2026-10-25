@@ -2,7 +2,7 @@
 gdb_layer() {
   local out; out="$(ogrinfo -ro -so "$1" 2>&1)" || true
   echo "gdb: $1" >&2; echo "$out" | head -8 >&2
-  echo "$out" | sed -n 's/^[0-9]*: \([^ ]*\) (.*/\1/p' | head -1
+  echo "$out" | sed -n -E 's/^(Layer: |[0-9]+: )([^ ]+) \(.*/\2/p' | head -1
 }
 # usfs_fetch NAME DIR -> downloads EDW file geodatabase NAME into DIR, prints the .gdb path
 usfs_fetch() {
