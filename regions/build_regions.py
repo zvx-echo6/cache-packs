@@ -152,7 +152,9 @@ def main():
     cols = [d[0] for d in con.description]
     rows = [dict(zip(cols, r)) for r in rows]
     no_area = collections.Counter(r["subtype"] for r in rows if not r["has_area"])
-    rows = [r for r in rows if r["has_area"]]
+    nocountry = sum(1 for r in rows if r["has_area"] and not r["country"])
+    rows = [r for r in rows if r["has_area"] and r["country"]]
+    log("dropped without a country code:", nocountry)
     log("with land polygon:", len(rows), "dropped for no polygon:", dict(no_area))
 
     # ids ------------------------------------------------------------------
