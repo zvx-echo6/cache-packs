@@ -19,4 +19,14 @@ The packs are built from public open data and published as GitHub Release assets
 
 ## Status
 
-No releases exist yet.
+First batch built for Idaho (bbox -118.0,41.5,-110.3,49.5, 50 km buffer) on 2026-10-25. Each recipe has a workflow (run by hand or on a schedule) and a document in `recipes/`.
+
+| Recipe | Kind | Output |
+|---|---|---|
+| [public-lands](recipes/public-lands.md) | PMTiles layer (USGS PAD-US 4.1) | built, 23 MB |
+| [usfs-trails-roads](recipes/usfs-trails-roads.md) | PMTiles layer (USFS EDW) | built, 113 MB |
+| [mvum](recipes/mvum.md) | PMTiles layer plus GeoJSON-seq (USFS MVUM) | built, 76 MB plus 33 MB |
+| [blm-routes](recipes/blm-routes.md) | PMTiles layer (BLM GTLF public datasets) | built, 15 MB |
+| [valhalla-routing](recipes/valhalla-routing.md) | Release assets (Valhalla 3.7.0 tiles) | release `idaho-2026-10-25`, 222 MB |
+
+Layers are published to the tile host with a layer definition each and a `catalogue.json` listing them. Not yet built: other regions, places, the off-road data file, land cover.
