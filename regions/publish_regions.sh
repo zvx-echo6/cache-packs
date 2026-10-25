@@ -15,7 +15,7 @@ for f in "$SRC"/regions/*.json; do
   aws s3 cp "$f" "s3://$R2_BUCKET/regions/$b" "${EP[@]}" --content-type application/json --cache-control "public, max-age=3600"
 done
 # remove shard files of countries that no longer exist
-aws s3 ls "s3://$R2_BUCKET/regions/" "${EP[@]/--only-show-errors/}" | awk '{print $4}' | grep -E '\.json$' | while read -r b; do
+aws s3 ls "s3://$R2_BUCKET/regions/" --endpoint-url "$R2_ENDPOINT" | awk '{print $4}' | grep -E '\.json$' | while read -r b; do
   [ -f "$SRC/regions/$b" ] || aws s3 rm "s3://$R2_BUCKET/regions/$b" "${EP[@]}"
 done
 aws s3 cp "$SRC/regions/manifest.json" "s3://$R2_BUCKET/regions/manifest.json" "${EP[@]}" --content-type application/json --cache-control "public, max-age=3600"
