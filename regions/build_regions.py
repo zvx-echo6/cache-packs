@@ -65,7 +65,7 @@ def bbox_of(g):
     w, s, e, n = g.bounds
     if e - w > 180:
         b = shapely.bounds(shapely.get_parts(g))
-        sh = np.where(b[:, 2] <= 0, b[:, [0, 2]] + 360, b[:, [0, 2]])
+        sh = np.where((b[:, 2] <= 0)[:, None], b[:, [0, 2]] + 360, b[:, [0, 2]])
         sw, se = float(sh[:, 0].min()), float(sh[:, 1].max())
         if se - sw < e - w:
             if se > 180:
