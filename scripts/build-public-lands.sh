@@ -6,27 +6,29 @@ FILE="${PADUS_FILE:-PADUS4_1Geodatabase.zip}"
 FC="${PADUS_LAYER:-PADUS4_1Combined_Proclamation_Marine_Fee_Designation_Easement}"
 W="$RUNNER_TEMP/public-lands"; mkdir -p "$W/src"
 
-# confirm the file is listed on the official ScienceBase item before downloading it
-curl -fsS "https://www.sciencebase.gov/catalog/item/$ITEM?format=json&fields=title,files" \
-  | jq -e --arg f "$FILE" --arg i "$ITEM" '.files[] | select(.name==$f) | {item:$i, name, size}'
-download "https://www.sciencebase.gov/catalog/file/get/$ITEM?name=$FILE" "$W/padus.zip"
-ls -l "$W/padus.zip"
-unzip -q "$W/padus.zip" -d "$W/src"; rm "$W/padus.zip"
-GDB="$(find "$W/src" -maxdepth 3 -name '*.gdb' -type d | head -1)"
-ogrinfo -ro -so -q "$GDB" | head -20
-
-df -h "$RUNNER_TEMP" | tail -1
-# national: whole inventory, split at the antimeridian (Aleutians); regional: bbox filter and clip
-EXTRA=(-wrapdateline)
-[ "$NATIONAL" = 0 ] && EXTRA=(-clipdst "$BB_W" "$BB_S" "$BB_E" "$BB_N")
-ogr2ogr -f GeoJSONSeq "$W/pad.geojsonl" "$GDB" "$FC" \
-  -t_srs EPSG:4326 "${SPAT[@]}" "${EXTRA[@]}" -makevalid -dim XY -nlt MULTIPOLYGON \
-  -select Unit_Nm,Mang_Name,Mang_Type,Des_Tp,Own_Type,Own_Name,Pub_Access,GAP_Sts,GIS_Acres,State_Nm,Category \
-  -nln public_lands
-wc -l "$W/pad.geojsonl"; ls -l "$W/pad.geojsonl"; rm -rf "$W/src"; df -h "$RUNNER_TEMP" | tail -1
+if [ "${PADUS_SOURCE:-service}" = gdb ]; then
+  # File geodatabase from the ScienceBase item (ScienceBase now puts a captcha in front of this download)
+  curl -fsS "https://www.sciencebase.gov/catalog/item/$ITEM?format=json&fields=title,files" \
+    | jq -e --arg f "$FILE" --arg i "$ITEM" '.files[] | select(.name==$f) | {item:$i, name, size}'
+  download "https://www.sciencebase.gov/catalog/file/get/$ITEM?name=$FILE" "$W/padus.zip"
+  ls -l "$W/padus.zip"
+  unzip -q "$W/padus.zip" -d "$W/src"; rm "$W/padus.zip"
+  GDB="$(find "$W/src" -maxdepth 3 -name '*.gdb' -type d | head -1)"
+  EXTRA=(-wrapdateline)
+  [ "$NATIONAL" = 0 ] && EXTRA=(-clipdst "$BB_W" "$BB_S" "$BB_E" "$BB_N")
+  ogr2ogr -f GeoJSONSeq "$W/pad.geojsonl" "$GDB" "$FC" \
+    -t_srs EPSG:4326 "${SPAT[@]}" "${EXTRA[@]}" -makevalid -dim XY -nlt MULTIPOLYGON \
+    -select Unit_Nm,Mang_Name,Mang_Type,Des_Tp,Own_Type,Own_Name,Pub_Access,GAP_Sts,GIS_Acres,State_Nm,Category \
+    -nln public_lands
+  rm -rf "$W/src"
+else
+  # USGS PAD-US Manager Name feature service (documented ArcGIS REST query API), see recipes/public-lands.md
+  python3 "$(dirname "$0")/fetch_padus_service.py" "$W/pad.geojsonl"
+fi
+wc -l "$W/pad.geojsonl"; ls -l "$W/pad.geojsonl"; df -h "$RUNNER_TEMP" | tail -1
 
 tippecanoe -q -o "$W/public-lands.pmtiles" -l public_lands -Z4 -z12 \
-  --drop-smallest-as-needed --simplification=2 --read-parallel --force "$W/pad.geojsonl"
+  --drop-smallest-as-needed --simplification=2 --read-parallel --force "${CLIP[@]}" "$W/pad.geojsonl"
 ls -l "$W/public-lands.pmtiles"; df -h "$RUNNER_TEMP" | tail -1
 
 python3 "$(dirname "$0")/publish_layer.py" --id "public-lands$LAYER_SUFFIX" \
