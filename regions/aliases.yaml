@@ -1,2 +1,14 @@
-# Extra search names for catalogue ids (hand-editable).
-aliases: {}
+# Extra search names for catalogue ids (hand-editable). Keys are region ids; unknown ids are reported as warnings by the build.
+# Names that Overture already carries (local-language and English names, ISO codes) are added automatically.
+aliases:
+  us: [USA, U.S., America, United States of America]
+  gb: [UK, Britain, Great Britain]
+  us-ca-los-angeles: [LA, L.A.]
+  us-metro-los-angeles-long-beach-anaheim-ca: [LA, Greater Los Angeles, Los Angeles metro]
+  us-ca-orange-county: [OC]
+  us-ut-salt-lake-city: [SLC]
+  us-metro-salt-lake-city-murray-ut: [SLC, Greater Salt Lake]
+  us-ny-new-york: [NYC, New York City]
+  us-nv-las-vegas: [Vegas]
+  us-or-portland: [PDX]
+  us-id-boise: [Boise City]
