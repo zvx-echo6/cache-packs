@@ -47,4 +47,5 @@ jobs:
           echo "release=$REL" >> "$GITHUB_OUTPUT"
       - name: Explore
         if: ${{ (inputs.mode || 'publish') == 'explore' }}
-        run: "$RUNNER_TEMP/venv/bin/python" -I regions/explore.py "${{ steps.rel.outputs.release }}"
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" -I regions/explore.py "${{ steps.rel.outputs.release }}"
