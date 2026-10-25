@@ -61,7 +61,17 @@ def round_area(a):
 
 
 def bbox_of(g):
-    return [round(v, 5) for v in g.bounds]
+    """[west, south, east, north]. Shapes that cross the antimeridian get west > east (RFC 7946) when that is the narrower box."""
+    w, s, e, n = g.bounds
+    if e - w > 180:
+        b = shapely.bounds(shapely.get_parts(g))
+        sh = np.where(b[:, 2] <= 0, b[:, [0, 2]] + 360, b[:, [0, 2]])
+        sw, se = float(sh[:, 0].min()), float(sh[:, 1].max())
+        if se - sw < e - w:
+            if se > 180:
+                se -= 360
+            return [round(sw, 5), round(s, 5), round(se, 5), round(n, 5)]
+    return [round(w, 5), round(s, 5), round(e, 5), round(n, 5)]
 
 
 def simplify_geom(g):
