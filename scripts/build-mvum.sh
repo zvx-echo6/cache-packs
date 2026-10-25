@@ -5,10 +5,12 @@ W="$RUNNER_TEMP/mvum"; mkdir -p "$W"
 RGDB="$(usfs_fetch Trans_MVUM_Road "$W/roads")";   RL="$(gdb_layer "$RGDB")"; echo "roads layer: $RL"
 TGDB="$(usfs_fetch Trans_MVUM_Trail "$W/trails")"; TL="$(gdb_layer "$TGDB")"; echo "trails layer: $TL"
 # mvum_kind marks which dataset a feature came from (kept in the GeoJSON-seq for the router)
-to_seq "$RGDB" "$RL" "$W/mvum_roads.geojsonl" mvum_roads -dialect OGRSQL -sql "SELECT *, 'road' AS mvum_kind FROM \"$RL\""
-to_seq "$TGDB" "$TL" "$W/mvum_trails.geojsonl" mvum_trails -dialect OGRSQL -sql "SELECT *, 'trail' AS mvum_kind FROM \"$TL\""
+to_seq "$RGDB" "$RL" "$W/roads_raw.geojsonl" mvum_roads
+to_seq "$TGDB" "$TL" "$W/trails_raw.geojsonl" mvum_trails
+jq -c '.properties.mvum_kind = "road"' "$W/roads_raw.geojsonl" > "$W/mvum_roads.geojsonl"
+jq -c '.properties.mvum_kind = "trail"' "$W/trails_raw.geojsonl" > "$W/mvum_trails.geojsonl"
 wc -l "$W"/*.geojsonl
-tippecanoe -o "$W/mvum.pmtiles" -Z8 -z14 --drop-densest-as-needed --read-parallel --force \
+tippecanoe -q -o "$W/mvum.pmtiles" -Z8 -z14 --drop-densest-as-needed --read-parallel --force \
   --clip-bounding-box="$BBOX" -x OBJECTID -x GLOBALID -x SECURITYID -x SHAPE_LEN -x SHAPE.LEN -x Shape_Length \
   -L mvum_roads:"$W/mvum_roads.geojsonl" -L mvum_trails:"$W/mvum_trails.geojsonl"
 cat "$W/mvum_roads.geojsonl" "$W/mvum_trails.geojsonl" | gzip -9 > "$W/mvum.geojsonl.gz"
