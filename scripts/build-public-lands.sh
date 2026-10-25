@@ -15,18 +15,21 @@ unzip -q "$W/padus.zip" -d "$W/src"; rm "$W/padus.zip"
 GDB="$(find "$W/src" -maxdepth 3 -name '*.gdb' -type d | head -1)"
 ogrinfo -ro -so -q "$GDB" | head -20
 
+df -h "$RUNNER_TEMP" | tail -1
+# national: whole inventory, split at the antimeridian (Aleutians); regional: bbox filter and clip
+EXTRA=(-wrapdateline)
+[ "$NATIONAL" = 0 ] && EXTRA=(-clipdst "$BB_W" "$BB_S" "$BB_E" "$BB_N")
 ogr2ogr -f GeoJSONSeq "$W/pad.geojsonl" "$GDB" "$FC" \
-  -t_srs EPSG:4326 -spat "$BB_W" "$BB_S" "$BB_E" "$BB_N" -spat_srs EPSG:4326 \
-  -clipdst "$BB_W" "$BB_S" "$BB_E" "$BB_N" -makevalid -dim XY -nlt MULTIPOLYGON \
+  -t_srs EPSG:4326 "${SPAT[@]}" "${EXTRA[@]}" -makevalid -dim XY -nlt MULTIPOLYGON \
   -select Unit_Nm,Mang_Name,Mang_Type,Des_Tp,Own_Type,Own_Name,Pub_Access,GAP_Sts,GIS_Acres,State_Nm,Category \
   -nln public_lands
-wc -l "$W/pad.geojsonl"
+wc -l "$W/pad.geojsonl"; ls -l "$W/pad.geojsonl"; rm -rf "$W/src"; df -h "$RUNNER_TEMP" | tail -1
 
 tippecanoe -q -o "$W/public-lands.pmtiles" -l public_lands -Z4 -z12 \
   --drop-smallest-as-needed --simplification=2 --read-parallel --force "$W/pad.geojsonl"
-ls -l "$W/public-lands.pmtiles"
+ls -l "$W/public-lands.pmtiles"; df -h "$RUNNER_TEMP" | tail -1
 
-python3 "$(dirname "$0")/publish_layer.py" --id "public-lands-$REGION" \
+python3 "$(dirname "$0")/publish_layer.py" --id "public-lands$LAYER_SUFFIX" \
   --title "Public lands (PAD-US)" \
   --description "Public land ownership, managers and designations from USGS PAD-US 4.1." \
   --pmtiles "$W/public-lands.pmtiles" --minzoom 4 --maxzoom 12 \

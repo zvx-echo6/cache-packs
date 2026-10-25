@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       region:
-        description: Region slug used in the layer id
-        default: idaho
+        description: Region slug (us = national build; anything else is a test run with the bbox below)
+        default: us
       bbox:
-        description: Region bounding box west,south,east,north
-        default: "-118.0,41.5,-110.3,49.5"
+        description: Test-run bounding box west,south,east,north (ignored for us)
+        default: ""
   schedule:
     - cron: "17 5 12 * *"
 
@@ -23,15 +23,15 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install tools
         run: scripts/setup-tools.sh
       - name: Build and publish
         env:
-          REGION: ${{ inputs.region || 'idaho' }}
-          BBOX: ${{ inputs.bbox || '-118.0,41.5,-110.3,49.5' }}
+          REGION: ${{ inputs.region || 'us' }}
+          BBOX: ${{ inputs.bbox || '' }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
