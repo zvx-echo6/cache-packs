@@ -1,0 +1,60 @@
+name: basemap-planet
+
+# Streams the newest Protomaps v4 planet build into R2 (no local copy), verifies BLAKE3 by reading it back,
+# keeps the newest 2. Three jobs, so each step has its own 6 h limit and a failed step can be re-run alone.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 11 3 * *"
+
+permissions:
+  contents: read
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_BUCKET: ${{ secrets.R2_BUCKET }}
+  R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      key: ${{ steps.p.outputs.key }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - id: p
+        run: python3 scripts/mirror_basemap.py plan
+  copy:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    env:
+      BUILD_KEY: ${{ needs.plan.outputs.key }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: scripts/setup-rclone.sh
+      - run: python3 scripts/mirror_basemap.py copy
+  verify:
+    needs: [plan, copy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    env:
+      BUILD_KEY: ${{ needs.plan.outputs.key }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: scripts/setup-rclone.sh
+      - run: python3 scripts/mirror_basemap.py verify
+  finalize:
+    needs: [plan, verify]
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: r2-catalogue
+      cancel-in-progress: false
+    env:
+      BUILD_KEY: ${{ needs.plan.outputs.key }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: scripts/setup-rclone.sh
+      - run: python3 scripts/mirror_basemap.py finalize
