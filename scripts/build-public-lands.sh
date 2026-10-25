@@ -36,5 +36,5 @@ python3 "$(dirname "$0")/publish_layer.py" --id "public-lands$LAYER_SUFFIX" \
   --description "Public land ownership, managers and designations from USGS PAD-US 4.1." \
   --pmtiles "$W/public-lands.pmtiles" --minzoom 4 --maxzoom 12 \
   --attribution "USGS Gap Analysis Project, PAD-US 4.1 (doi:10.5066/P96WBCHS)" \
-  --license "Public domain (US Government data)" --interval-days 90 --recipe public-lands.md \
+  --license "Public domain (US Government data)" --interval-days 90 --role public_lands --recipe public-lands.md \
   --style-hints '[{"name":"public_lands","attributes":["Mang_Name","Mang_Type","Own_Type","Des_Tp","GAP_Sts","Pub_Access","Unit_Nm","GIS_Acres"]}]'

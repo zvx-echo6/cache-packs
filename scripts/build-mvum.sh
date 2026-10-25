@@ -21,5 +21,5 @@ python3 "$(dirname "$0")/publish_layer.py" --id "mvum$LAYER_SUFFIX" \
   --pmtiles "$W/mvum.pmtiles" --minzoom 8 --maxzoom 14 \
   --attribution "USDA Forest Service, Motor Vehicle Use Map (Enterprise Data Warehouse)" \
   --license "Public domain (US Government data); provided without warranty by the USDA Forest Service" \
-  --interval-days 30 --recipe mvum.md --extra "$W/mvum.geojsonl.gz:application/gzip" \
+  --interval-days 30 --role mvum --recipe mvum.md --extra "$W/mvum.geojsonl.gz:application/gzip" \
   --style-hints '[{"name":"mvum_roads","attributes":["NAME","SYMBOL","MVUM_SYMBOL_NAME","SEASONAL","PASSENGERVEHICLE","HIGHCLEARANCEVEHICLE","ATV","MOTORCYCLE","FOURWD_GT50INCHES","PASSENGERVEHICLE_DATESOPEN","ATV_DATESOPEN","MOTORCYCLE_DATESOPEN"]},{"name":"mvum_trails","attributes":["NAME","SYMBOL","MVUM_SYMBOL_NAME","SEASONAL","ATV","MOTORCYCLE","FOURWD_GT50INCHES","TRAILCLASS","ATV_DATESOPEN","MOTORCYCLE_DATESOPEN"]}]'
