@@ -17,5 +17,5 @@ python3 "$(dirname "$0")/publish_layer.py" --id "usfs-trails-roads$LAYER_SUFFIX"
   --pmtiles "$W/usfs.pmtiles" --minzoom 6 --maxzoom 14 \
   --attribution "USDA Forest Service, Enterprise Data Warehouse (NFS Trails and Road Core)" \
   --license "Public domain (US Government data); provided without warranty by the USDA Forest Service" \
-  --interval-days 30 --recipe usfs-trails-roads.md \
-  --style-hints '[{"name":"trails","attributes":["TRAIL_NAME","TRAIL_TYPE","TRAIL_CLASS","ALLOWED_TERRA_USE","MOTORCYCLE_MANAGED","ATV_MANAGED","BICYCLE_MANAGED","HIKER_PEDESTRIAN_MANAGED"]},{"name":"roads","attributes":["NAME","SYSTEM","OPER_MAINT_LEVEL","SURFACE_TYPE","ROUTE_STATUS","OPENFORUSETO"]}]'
+  --interval-days 30 --role trails --recipe usfs-trails-roads.md \
+  --style-hints '[{"name":"trails","role":"trails","attributes":["TRAIL_NAME","TRAIL_TYPE","TRAIL_CLASS","ALLOWED_TERRA_USE","MOTORCYCLE_MANAGED","ATV_MANAGED","BICYCLE_MANAGED","HIKER_PEDESTRIAN_MANAGED"]},{"name":"roads","role":"roads","attributes":["NAME","SYSTEM","OPER_MAINT_LEVEL","SURFACE_TYPE","ROUTE_STATUS","OPENFORUSETO"]}]'
