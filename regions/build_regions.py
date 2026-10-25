@@ -99,6 +99,9 @@ def curl(url, dest):
     subprocess.run(["curl", "-fL", "--retry", "5", "--retry-delay", "10", "--retry-all-errors", "-sS", "-A", UA, "-o", dest, url], check=True)
 
 
+T0 = __import__("time").time()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--release", required=True)
@@ -528,9 +531,12 @@ def main():
         for p in ps:
             tchild[p].append(rid)
 
+    KIND_RANK = {"multi_country": 0, "multi_state": 0, "sub_state": 1, "valley": 1, "metro_alias": 1, "dependency": 2,
+                 "region": 3, "county": 4, "metro": 5, "locality": 6}
+
     def sort_key(rid):
         d = records[rid]
-        return (-(d.get("population") or 0) if d["kind"] == "locality" else 0, d["name"].casefold())
+        return (KIND_RANK.get(d["kind"], 9), -(d.get("population") or 0) if d["kind"] == "locality" else 0, d["name"].casefold())
 
     def node(rid, depth=0):
         d = records[rid]
@@ -657,6 +663,8 @@ def main():
         for rid, d in sorted(records.items()):
             if d["kind"] != "locality":
                 f.write("\t".join([rid, d["kind"], d["name"], ",".join(d["parents"]), str(d.get("population", ""))]) + "\n")
+    import resource, time
+    log("peak memory MB:", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024, "elapsed s:", round(time.time() - T0))
     log("done:", len(records), "regions;", dict(kinds_all), "polygon bytes", total_poly)
 
 
