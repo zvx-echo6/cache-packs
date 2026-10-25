@@ -55,3 +55,6 @@ else
   gh release create "$TAG" "$W/out"/* --title "$REGION routing tiles $VERSION" \
     --notes "Valhalla $VALHALLA_VERSION routing tiles for $REGION, built from the Geofabrik extract $(basename "$DATED"). Contains data (c) OpenStreetMap contributors (ODbL). See recipes/valhalla-routing.md."
 fi
+
+# list the pack in the catalogue (the files stay on the release)
+python3 "$(dirname "$0")/publish_pack.py" "$W/out/valhalla-$REGION-manifest.json" "$TAG"
