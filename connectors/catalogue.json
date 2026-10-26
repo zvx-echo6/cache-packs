@@ -294,7 +294,7 @@
     {
       "id": "openmeteo-forecast",
       "title": "Weather forecast (Open-Meteo)",
-      "description": "weather forecast for the place: current conditions and a 16-day outlook with highs, lows, rain chance, wind (Open-Meteo, worldwide)",
+      "description": "weather forecast for the place: current conditions and a 16-day outlook with highs, lows, rain chance, rain and snow amounts, wind (Open-Meteo, worldwide)",
       "category": "weather",
       "provider": "Open-Meteo",
       "coverage": "worldwide",
