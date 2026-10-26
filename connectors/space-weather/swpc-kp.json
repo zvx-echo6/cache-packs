@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "id": "swpc-kp",
+  "title": "Geomagnetic Kp index (NOAA)",
+  "provider": "NOAA SWPC",
+  "description": "planetary Kp index (geomagnetic activity, 0 quiet to 9 extreme storm), newest first, 3-hourly; not tied to a place",
+  "attribution": "Space weather data from NOAA Space Weather Prediction Center (swpc.noaa.gov), US Government work",
+  "request": { "url": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json" },
+  "refresh_minutes": 60,
+  "quota": { "per_minute": 5, "per_day": 300, "per_month": 5000 },
+  "validity": { "fixed_hours": 6 },
+  "require": ["[0].time_tag"],
+  "items": [
+    {
+      "each": "^",
+      "key": { "path": "time_tag" },
+      "label": { "template": "Kp {k}", "vars": { "k": { "path": "Kp", "round": 2 } } },
+      "sort": [ { "by": { "path": "time_tag", "time": { "in": "local" } }, "time": true, "desc": true } ],
+      "fields": [
+        { "label": "Kp", "path": "Kp", "round": 2 },
+        { "label": "Period start (UTC)", "path": "time_tag" },
+        { "label": "Stations reporting", "path": "station_count" }
+      ]
+    }
+  ]
+}

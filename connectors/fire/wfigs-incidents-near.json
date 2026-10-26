@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "id": "wfigs-incidents-near",
+  "title": "Wildfires near the place (WFIGS)",
+  "provider": "NIFC WFIGS",
+  "description": "current wildfire incidents within 150 miles of the place, with size, containment and county (US, NIFC WFIGS)",
+  "attribution": "Wildfire incidents from the National Interagency Fire Center WFIGS (data-nifc.opendata.arcgis.com), public domain",
+  "request": {
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=IncidentTypeCategory%3D%27WF%27&outFields=IncidentName,IncidentSize,PercentContained,POOState,POOCounty,FireCause,IncidentShortDescription,UniqueFireIdentifier,IrwinID,TotalIncidentPersonnel,IncidentManagementOrganization&geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&distance=150&units=esriSRUnit_StatuteMile&returnGeometry=true&f=geojson"
+  },
+  "refresh_minutes": 20,
+  "quota": { "per_minute": 10, "per_day": 500, "per_month": 10000 },
+  "validity": { "fixed_hours": 3 },
+  "require": ["features"],
+  "items": [
+    {
+      "each": "features",
+      "key": { "first_of": [ { "path": "properties.UniqueFireIdentifier" }, { "path": "properties.IrwinID" } ] },
+      "label": { "path": "properties.IncidentName", "suffix": " fire" },
+      "point": { "lat": { "path": "geometry.coordinates[1]" }, "lon": { "path": "geometry.coordinates[0]" } },
+      "fields": [
+        { "label": "Size", "path": "properties.IncidentSize", "round": 0, "suffix": " acres" },
+        { "label": "Contained", "path": "properties.PercentContained", "round": 0, "suffix": "%" },
+        { "label": "County", "path": "properties.POOCounty" },
+        { "label": "State", "path": "properties.POOState" },
+        { "label": "Cause", "path": "properties.FireCause", "case": "lower", "omit_if": ["undetermined"] },
+        { "label": "Location", "path": "properties.IncidentShortDescription", "max_chars": 160 },
+        { "label": "Personnel", "path": "properties.TotalIncidentPersonnel" },
+        { "label": "Managed by", "path": "properties.IncidentManagementOrganization" }
+      ]
+    }
+  ]
+}

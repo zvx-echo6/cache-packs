@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "id": "swpc-scales",
+  "title": "Space weather scales (NOAA)",
+  "provider": "NOAA SWPC",
+  "description": "current NOAA space weather scales (radio blackouts R, solar radiation storms S, geomagnetic storms G) and the 3-day outlook; not tied to a place",
+  "attribution": "Space weather data from NOAA Space Weather Prediction Center (swpc.noaa.gov), US Government work",
+  "request": { "url": "https://services.swpc.noaa.gov/products/noaa-scales.json" },
+  "refresh_minutes": 30,
+  "quota": { "per_minute": 5, "per_day": 300, "per_month": 5000 },
+  "validity": { "fixed_hours": 3 },
+  "require": ["0.G"],
+  "items": [
+    {
+      "key": { "const": "now" },
+      "label": { "const": "Space weather now (NOAA scales)" },
+      "fields": [
+        { "label": "Radio blackouts", "template": "R{s} {t}", "vars": { "s": { "path": "0.R.Scale" }, "t": { "path": "0.R.Text" } } },
+        { "label": "Solar radiation storms", "template": "S{s} {t}", "vars": { "s": { "path": "0.S.Scale" }, "t": { "path": "0.S.Text" } } },
+        { "label": "Geomagnetic storms", "template": "G{s} {t}", "vars": { "s": { "path": "0.G.Scale" }, "t": { "path": "0.G.Text" } } },
+        { "label": "Observed (UTC)", "template": "{d} {t}", "vars": { "d": { "path": "0.DateStamp" }, "t": { "path": "0.TimeStamp" } } }
+      ]
+    },
+    {
+      "key": { "const": "day1" },
+      "label": { "template": "Space weather outlook {d}", "vars": { "d": { "path": "1.DateStamp" } } },
+      "fields": [
+        { "label": "Minor radio blackout (R1-R2) chance", "path": "1.R.MinorProb", "suffix": "%" },
+        { "label": "Major radio blackout (R3-R5) chance", "path": "1.R.MajorProb", "suffix": "%" },
+        { "label": "Radiation storm (S1 or more) chance", "path": "1.S.Prob", "suffix": "%" },
+        { "label": "Geomagnetic storms", "template": "G{s} {t}", "vars": { "s": { "path": "1.G.Scale" }, "t": { "path": "1.G.Text" } } }
+      ]
+    },
+    {
+      "key": { "const": "day2" },
+      "label": { "template": "Space weather outlook {d}", "vars": { "d": { "path": "2.DateStamp" } } },
+      "fields": [
+        { "label": "Minor radio blackout (R1-R2) chance", "path": "2.R.MinorProb", "suffix": "%" },
+        { "label": "Major radio blackout (R3-R5) chance", "path": "2.R.MajorProb", "suffix": "%" },
+        { "label": "Radiation storm (S1 or more) chance", "path": "2.S.Prob", "suffix": "%" },
+        { "label": "Geomagnetic storms", "template": "G{s} {t}", "vars": { "s": { "path": "2.G.Scale" }, "t": { "path": "2.G.Text" } } }
+      ]
+    },
+    {
+      "key": { "const": "day3" },
+      "label": { "template": "Space weather outlook {d}", "vars": { "d": { "path": "3.DateStamp" } } },
+      "fields": [
+        { "label": "Minor radio blackout (R1-R2) chance", "path": "3.R.MinorProb", "suffix": "%" },
+        { "label": "Major radio blackout (R3-R5) chance", "path": "3.R.MajorProb", "suffix": "%" },
+        { "label": "Radiation storm (S1 or more) chance", "path": "3.S.Prob", "suffix": "%" },
+        { "label": "Geomagnetic storms", "template": "G{s} {t}", "vars": { "s": { "path": "3.G.Scale" }, "t": { "path": "3.G.Text" } } }
+      ]
+    }
+  ]
+}

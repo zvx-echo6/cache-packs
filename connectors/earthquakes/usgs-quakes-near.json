@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "id": "usgs-quakes-near",
+  "title": "Earthquakes near the place (USGS)",
+  "provider": "USGS",
+  "description": "recent earthquakes of magnitude 2 or more within 300 km of the place, newest first (USGS)",
+  "attribution": "Earthquake data from the US Geological Survey (earthquake.usgs.gov), public domain",
+  "request": {
+    "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude={lat}&longitude={lon}&maxradiuskm=300&minmagnitude=2&orderby=time&limit=20"
+  },
+  "refresh_minutes": 15,
+  "quota": { "per_minute": 10, "per_day": 500, "per_month": 10000 },
+  "validity": { "fixed_hours": 2 },
+  "require": ["features"],
+  "items": [
+    {
+      "each": "features",
+      "key": { "path": "id" },
+      "label": { "path": "properties.title" },
+      "point": { "lat": { "path": "geometry.coordinates[1]" }, "lon": { "path": "geometry.coordinates[0]" } },
+      "fields": [
+        { "label": "Magnitude", "path": "properties.mag", "round": 1 },
+        { "label": "Location", "path": "properties.place" },
+        { "label": "Depth", "path": "geometry.coordinates[2]", "round": 0, "suffix": " km" },
+        { "label": "Felt reports", "path": "properties.felt" },
+        { "label": "Shaking alert (PAGER)", "path": "properties.alert" },
+        { "label": "Tsunami", "path": "properties.tsunami", "lookup": { "1": "tsunami message issued" } },
+        { "label": "Review status", "path": "properties.status" },
+        { "label": "Details", "path": "properties.url" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "id": "usgs-quakes-day-m25",
+  "title": "Worldwide earthquakes, past day (USGS)",
+  "provider": "USGS",
+  "description": "magnitude 2.5 or more earthquakes anywhere in the world in the past day, newest first; not tied to a place (USGS)",
+  "attribution": "Earthquake data from the US Geological Survey (earthquake.usgs.gov), public domain",
+  "request": { "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson" },
+  "refresh_minutes": 15,
+  "quota": { "per_minute": 10, "per_day": 500, "per_month": 10000 },
+  "validity": { "fixed_hours": 2 },
+  "require": ["features"],
+  "items": [
+    {
+      "each": "features",
+      "key": { "path": "id" },
+      "label": { "path": "properties.title" },
+      "point": { "lat": { "path": "geometry.coordinates[1]" }, "lon": { "path": "geometry.coordinates[0]" } },
+      "fields": [
+        { "label": "Magnitude", "path": "properties.mag", "round": 1 },
+        { "label": "Location", "path": "properties.place" },
+        { "label": "Depth", "path": "geometry.coordinates[2]", "round": 0, "suffix": " km" },
+        { "label": "Felt reports", "path": "properties.felt" },
+        { "label": "Shaking alert (PAGER)", "path": "properties.alert" },
+        { "label": "Tsunami", "path": "properties.tsunami", "lookup": { "1": "tsunami message issued" } },
+        { "label": "Details", "path": "properties.url" }
+      ]
+    }
+  ]
+}
