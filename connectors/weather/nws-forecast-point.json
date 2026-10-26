@@ -1,0 +1,34 @@
+{
+  "format": 2,
+  "id": "nws-forecast-point",
+  "title": "Weather forecast (NWS, by point)",
+  "provider": "NWS",
+  "description": "National Weather Service forecast for the place in 12-hour periods for about a week: temperature, wind, chance of rain and the written forecast (US only; two requests: the point, then its forecast)",
+  "attribution": "Forecasts from the US National Weather Service (weather.gov)",
+  "request": {
+    "headers": {"Accept": "application/geo+json", "User-Agent": "Cache (https://github.com/zvx-echo6/cache-packs)"},
+    "steps": [{"id": "point", "url": "https://api.weather.gov/points/{lat:4},{lon:4}"}, {"id": "fc", "url": "{point:properties.forecast|raw}"}]
+  },
+  "refresh_minutes": 60,
+  "quota": {"per_minute": 6, "per_day": 400, "per_month": 8000},
+  "validity": {"fixed_hours": 12},
+  "require": ["point.properties.forecast", "fc.properties.periods"],
+  "timezone_path": "point.properties.timeZone",
+  "items": [
+    {
+      "each": "fc.properties.periods",
+      "key": {"path": "number"},
+      "label": {"path": "name"},
+      "time": {"path": "startTime", "time": {"in": "rfc3339", "zone": "place", "out": "datetime"}},
+      "ends": {"path": "endTime", "time": {"in": "rfc3339"}},
+      "limit": 14,
+      "fields": [
+        {"label": "Temperature", "template": "{t} °{u}", "vars": {"t": {"path": "temperature"}, "u": {"path": "temperatureUnit"}}},
+        {"label": "Wind", "template": "{s} {d}", "vars": {"s": {"path": "windSpeed"}, "d": {"path": "windDirection"}}},
+        {"label": "Chance of precipitation", "path": "probabilityOfPrecipitation.value", "round": 0, "suffix": "%"},
+        {"label": "Summary", "path": "shortForecast"},
+        {"label": "Forecast", "path": "detailedForecast", "max_chars": 400}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "format": 2,
+  "id": "nws-observations-latest",
+  "title": "Current conditions (NWS stations near the place)",
+  "provider": "NWS",
+  "description": "latest observations from the nearest National Weather Service stations (up to three that reported in the last 12 hours): temperature, wind, humidity, pressure and sky (US only; the station list, then each station's latest report)",
+  "attribution": "Observations from the US National Weather Service (weather.gov)",
+  "request": {
+    "headers": {"Accept": "application/geo+json", "User-Agent": "Cache (https://github.com/zvx-echo6/cache-packs)"},
+    "steps": [
+      {"id": "point", "url": "https://api.weather.gov/points/{lat:4},{lon:4}"},
+      {"id": "list", "url": "{point:properties.observationStations|raw}"},
+      {
+        "id": "obs",
+        "url": "https://api.weather.gov/stations/{s:properties.stationIdentifier}/observations/latest",
+        "for_each": {"from": "list", "path": "features", "as": "s", "limit": 3}
+      }
+    ]
+  },
+  "refresh_minutes": 20,
+  "quota": {"per_minute": 10, "per_day": 600, "per_month": 12000},
+  "validity": {"fixed_hours": 3},
+  "require": ["list.features", "obs"],
+  "timezone_path": "point.properties.timeZone",
+  "items": [
+    {
+      "each": "obs",
+      "key": {"path": "properties.station", "after_last": "/"},
+      "label": {"template": "Conditions at {id}", "vars": {"id": {"path": "properties.station", "after_last": "/"}}},
+      "time": {"path": "properties.timestamp", "time": {"in": "rfc3339", "zone": "place", "out": "datetime"}},
+      "limit": 3,
+      "fields": [
+        {"label": "Sky", "path": "properties.textDescription"},
+        {"label": "Temperature", "path": "properties.temperature.value", "scale": 1.8, "offset": 32, "round": 0, "suffix": " °F"},
+        {"label": "Wind", "path": "properties.windSpeed.value", "scale": 0.621371, "round": 0, "suffix": " mph"},
+        {"label": "Gusts", "path": "properties.windGust.value", "scale": 0.621371, "round": 0, "suffix": " mph"},
+        {"label": "Wind direction", "path": "properties.windDirection.value", "compass": true},
+        {"label": "Humidity", "path": "properties.relativeHumidity.value", "round": 0, "suffix": "%"},
+        {"label": "Pressure", "path": "properties.barometricPressure.value", "scale": 0.01, "round": 0, "suffix": " hPa"},
+        {"label": "Visibility", "path": "properties.visibility.value", "scale": 0.000621371, "round": 1, "suffix": " mi"}
+      ],
+      "where": [{"value": {"path": "properties.timestamp", "time": {"in": "rfc3339"}}, "max_age_hours": 12}]
+    }
+  ]
+}

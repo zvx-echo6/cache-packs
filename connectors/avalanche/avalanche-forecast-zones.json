@@ -1,0 +1,41 @@
+{
+  "format": 2,
+  "id": "avalanche-forecast-zones",
+  "title": "Avalanche danger near the place (avalanche.org)",
+  "provider": "avalanche.org (US avalanche centers)",
+  "description": "current avalanche danger rating (1 low to 5 extreme) and travel advice for the forecast zones that contain the place or lie within 50 miles of it (default), nearest first, with the forecast's valid period and a link to the full forecast (US)",
+  "attribution": "Avalanche forecasts from the regional avalanche centers via avalanche.org; read the full forecast at the link before travelling in avalanche terrain",
+  "params": [{"name": "radius_mi", "label": "Radius (miles)", "type": "integer", "default": 50, "min": 1, "max": 300}],
+  "request": {
+    "url": "https://api.avalanche.org/v2/public/products/map-layer",
+    "headers": {"Accept": "application/json", "User-Agent": "Cache (https://github.com/zvx-echo6/cache-packs)"}
+  },
+  "refresh_minutes": 120,
+  "quota": {"per_minute": 4, "per_day": 100, "per_month": 1500},
+  "validity": {"fixed_hours": 12},
+  "require": ["features"],
+  "items": [
+    {
+      "each": "features",
+      "key": {"template": "{c}-{n}", "vars": {"c": {"path": "properties.center_id"}, "n": {"path": "id"}}},
+      "label": {"template": "{zone} ({center})", "vars": {"zone": {"path": "properties.name"}, "center": {"path": "properties.center_id"}}},
+      "time": {"path": "properties.start_date", "time": {"in": "local", "out": "datetime"}},
+      "ends": {"path": "properties.end_date", "time": {"in": "local"}},
+      "near": {"max": {"param": "radius_mi"}, "unit": "mi", "geometry": "geometry"},
+      "area": "geometry",
+      "sort": [{"distance": true}],
+      "limit": 6,
+      "fields": [
+        {"label": "Danger", "path": "properties.danger", "case": "lower"},
+        {"label": "Danger level (1 low to 5 extreme)", "path": "properties.danger_level", "omit_if": ["-1"]},
+        {"label": "Distance to the zone", "distance": {"geometry": "geometry", "unit": "mi"}},
+        {"label": "Travel advice", "path": "properties.travel_advice", "max_chars": 400},
+        {"label": "Forecast period starts", "path": "properties.start_date", "time": {"in": "local", "out": "%Y-%m-%d %H:%M"}},
+        {"label": "Forecast period ends", "path": "properties.end_date", "time": {"in": "local", "out": "%Y-%m-%d %H:%M"}},
+        {"label": "Season", "path": "properties.off_season", "lookup": {"true": "off season, no forecast issued"}},
+        {"label": "Avalanche center", "path": "properties.center"},
+        {"label": "Full forecast", "path": "properties.link"}
+      ]
+    }
+  ]
+}

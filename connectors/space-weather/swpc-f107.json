@@ -1,26 +1,29 @@
 {
-  "format": 1,
+  "format": 2,
   "id": "swpc-f107",
   "title": "Solar flux F10.7 (NOAA)",
   "provider": "NOAA SWPC",
   "description": "10.7 cm solar radio flux (a measure of solar activity that sets HF radio conditions), newest first; not tied to a place",
   "attribution": "Space weather data from NOAA Space Weather Prediction Center (swpc.noaa.gov), US Government work",
-  "request": { "url": "https://services.swpc.noaa.gov/json/f107_cm_flux.json" },
+  "request": {"url": "https://services.swpc.noaa.gov/json/f107_cm_flux.json"},
   "refresh_minutes": 360,
-  "quota": { "per_minute": 5, "per_day": 100, "per_month": 1000 },
-  "validity": { "fixed_hours": 48 },
+  "quota": {"per_minute": 5, "per_day": 100, "per_month": 1000},
+  "validity": {"fixed_hours": 48},
   "require": ["[0].flux"],
   "items": [
     {
       "each": "^",
-      "key": { "path": "time_tag" },
-      "label": { "template": "Solar flux {f} sfu", "vars": { "f": { "path": "flux", "round": 0 } } },
+      "key": {"path": "time_tag"},
+      "label": {"template": "Solar flux {f} sfu", "vars": {"f": {"path": "flux", "round": 0}}},
       "fields": [
-        { "label": "Flux (solar flux units)", "path": "flux", "round": 0 },
-        { "label": "Measured (UTC)", "path": "time_tag" },
-        { "label": "Schedule", "path": "reporting_schedule" },
-        { "label": "90-day mean", "path": "ninety_day_mean", "round": 0 }
-      ]
+        {"label": "Flux (solar flux units)", "path": "flux", "round": 0},
+        {"label": "Measured", "path": "time_tag", "time": {"in": "utc", "out": "%Y-%m-%d %H:%M %:z"}},
+        {"label": "Schedule", "path": "reporting_schedule"},
+        {"label": "90-day mean", "path": "ninety_day_mean", "round": 0}
+      ],
+      "time": {"path": "time_tag", "time": {"in": "utc", "out": "datetime"}},
+      "sort": [{"by": {"path": "time_tag", "time": {"in": "utc"}}, "time": true, "desc": true}],
+      "limit": 10
     }
   ]
 }

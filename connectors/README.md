@@ -35,7 +35,7 @@ Each entry of `connectors`:
 |---|---|
 | `id` | Same as the `id` inside the definition. |
 | `title`, `description` | Same text as in the definition (so the app can list a connector without downloading it). |
-| `category` | `weather`, `alerts`, `space-weather`, `earthquakes`, `fire`, `hydrology`, `roads`, `traffic` (a catalogue may add its own). |
+| `category` | `weather`, `alerts`, `space-weather`, `earthquakes`, `fire`, `hydrology`, `roads`, `traffic`, `avalanche` (a catalogue may add its own). |
 | `provider` | The organisation whose data it is. |
 | `coverage` | `worldwide`, `US`, or a region name (`Idaho`). A region connector returns the same data for every place. |
 | `needs_key` | `true` when the provider requires an API key. |
@@ -49,41 +49,47 @@ Each entry of `connectors`:
 
 Relative paths never contain `..` and never start with `/`; an app must reject a path that leaves `base_url`.
 
-## Definition format (format 1)
+## Definition format (format 2)
 
-The format is read by the `cache_live` crate (`packages/cache_search/native/cache_live/src/def.rs`) and described in `packages/cache_search/DESIGN.md`, "Live sources". In short:
+The format is read by the `cache_live` crate (`packages/cache_search/native/cache_live/src/def.rs`), described in full, with an example per feature, in `packages/cache_search/DESIGN.md` ("Live sources"), and available as a JSON Schema (`packages/cache_search/schema/live-source.schema.json`) that editors can check a definition against. Format 2 is a superset of format 1: older files still load. In short:
 
 ```
-{ "format": 1, "id": "...", "title": "...", "provider": "...",
+{ "format": 2, "id": "...", "title": "...", "provider": "...",
   "description": "one line: what the model and the Home card see",
   "attribution": "credit line",
-  "request": { "url": "https://...?lat={lat}&lon={lon}", "headers": { ... } },
-  "api_key": { "alias": "name", "required": true },     only for keyed providers; {api_key} in url or headers
+  "request": { "url": "https://...?lat={lat}&lon={lon}", "headers": { ... },
+               "method": "GET|POST", "body": { ... }, "response": "json|xml|csv|tsv|tle", "timeout_seconds": 30, "max_bytes": 8388608,
+               "paging": { ... }, "steps": [ ... ] },
+  "api_key": { "alias": "name", "required": true },       a key in the url, a header or the path: {api_key}
+  "basic_auth": { "user_alias": "u", "password_alias": "p" },
+  "params": [ { "name": "radius_mi", "type": "integer", "default": 50 } ],     values the user sets: {param:radius_mi}
   "refresh_minutes": 30,                                 a fetch inside this time returns the stored copy
   "quota": { "per_minute": n, "per_day": n, "per_month": n },
   "validity": { "fixed_hours": 3 },                      or { "end_path": ..., "end_of_day": true }
   "require": ["path that must exist"],
-  "timezone_path": "...",                                optional
-  "items": [ { "each": "path to an array", "key": V, "label": V, "time": V, "ends": V,
-               "fields": [ { "label": "...", ...V } ], "sort": [...], "point": {...}, "area": "path to GeoJSON" } ] }
+  "items": [ { "each": "path to an array or object", "key": V, "label": V, "time": V, "ends": V,
+               "fields": [ { "label": "...", ...V } ], "where": [...], "near": {...}, "sort": [...], "limit": n,
+               "point": {...}, "area": "path to GeoJSON" } ] }
 ```
 
-Placeholders in the URL and headers: `{lat}` `{lon}` (4 decimals, `{lat:2}` for another count), `{name}`, `{place_key}`, `{api_key}`. Values are percent-encoded. Unknown keys in a definition are errors.
+Placeholders in the URL, headers and body: `{lat}` `{lon}` (`{lat:2}` for another count), `{latlon}`, `{name}`, `{place_key}`, `{api_key}`, `{param:name}`, `{bbox:50km}` (west,south,east,north around the place), `{state}` `{county}` `{country}` (from the place), `{now-24h:unix}`, and values from an earlier step. Unknown keys in a definition are errors.
+
+Write and test a definition with the `cs` tool: `cs live-check <def.json>` validates it and names every problem by field; `cs live-preview <def.json> --place 43.615,-116.2023 [--param k=v] [--key ...]` fetches once and prints the raw response tree, the paths in it and the mapped items, so you can see what to map.
 
 Rules for this catalogue:
 
-1. Official, documented APIs only. No scraping: no HTML pages, no undocumented or internal endpoints, nothing that needs a browser-shaped User-Agent to get past a firewall. Every connector has a `docs` link in the catalogue.
+1. Official, documented APIs only. No scraping: no HTML pages, no undocumented or internal endpoints, nothing that needs a browser-shaped User-Agent to get past a firewall. Every connector has a `docs` link in the catalogue. One exception, accepted by the project owner on 2026-10-26: the avalanche.org forecast map layer (public, undocumented, used with the project User-Agent).
 2. Never put a key in a definition. A keyed provider uses `api_key` with an alias; the user supplies the value and the app keeps it in secure storage.
 3. Never put a real person's name, callsign or e-mail in a definition, header or attribution. Where a provider asks for a contact in the User-Agent (NWS), use the project: `Cache (https://github.com/zvx-echo6/cache-packs)`.
 4. Quotas follow the provider's published limits (or a polite cap where the provider publishes none, and the connector says which in INVENTORY.md).
 5. Say what the data is in the one-line `description`, and give the provider's credit and licence in `attribution` / `license`.
-6. Do not work around what the format cannot express. If a source needs XML or CSV parsing, paging, a radius computed by the app or a two-step lookup, list it as a format gap in INVENTORY.md instead of bending the definition.
+6. Do not work around what the format cannot express. XML, CSV, paging, multi-step requests, a radius from the place, POST bodies, Basic auth and keys in a header or the path are all in the format now; if a source needs something that is not (OAuth, scripting, orbit calculation), list it in INVENTORY.md instead of bending the definition.
 
 ## Adding a connector to this catalogue
 
 1. Read the provider's documentation and confirm the rules above.
-2. Write `connectors/<category>/<id>.json`. Start from a similar one (`wfigs-incidents-near.json` for GeoJSON with a radius query, `swpc-kp.json` for a plain list, `idaho511-events.json` for a keyed source).
-3. Test it against the real API with the `cs` command line tool for a couple of places (`cs live-fetch --config <config.json> --request '{"source":"<id>","place":{"key":"boise","name":"Boise, ID","lat":43.615,"lon":-116.2023},"force":true}'`; a key goes in as `"api_key"`), and check that the labels, units, times and ordering read well. For a keyed source, test against a saved sample of the provider's documented response.
+2. Write `connectors/<category>/<id>.json`. Start from a similar one (`wfigs-incidents-near.json` for GeoJSON with a radius query and paging, `swpc-kp.json` for a plain list, `idaho511-events.json` for a keyed source, `nws-forecast-point.json` for a two-step request, `firms-viirs-near.json` for CSV with a key in the path).
+3. Run `cs live-check` on it, then test it against the real API with `cs live-preview` for a couple of places (a key goes in with `--key`, or `$CACHE_LIVE_KEY`), and check that the labels, units, times and ordering read well. For a keyed source, test against a saved sample of the provider's documented response served from the test machine itself.
 4. Add the entry to `catalogue.json`, update `updated`, and add the row to INVENTORY.md.
 
 ## Publishing your own catalogue

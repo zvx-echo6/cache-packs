@@ -1,0 +1,79 @@
+{
+  "format": 2,
+  "id": "nwps-gauge-forecast",
+  "title": "River forecast for one gauge (NWPS)",
+  "provider": "NOAA National Water Prediction Service",
+  "description": "the latest observed reading and the forecast stage and flow for one NWS river gauge, chosen by its id such as BIGI1 (US, NOAA NWPS)",
+  "attribution": "River gauge data and forecasts from the NOAA National Water Prediction Service (water.noaa.gov), public domain",
+  "params": [
+    {
+      "name": "gauge",
+      "label": "Gauge id (for example BIGI1)",
+      "type": "text",
+      "required": true,
+      "help": "The five-character NWS id shown on water.noaa.gov for the gauge."
+    }
+  ],
+  "request": {
+    "url": "https://api.water.noaa.gov/nwps/v1/gauges/{param:gauge}/stageflow",
+    "headers": {"User-Agent": "Cache (https://github.com/zvx-echo6/cache-packs)"}
+  },
+  "refresh_minutes": 60,
+  "quota": {"per_minute": 6, "per_day": 300, "per_month": 6000},
+  "validity": {"fixed_hours": 12},
+  "require": ["observed.data", "forecast"],
+  "items": [
+    {
+      "each": "observed.data",
+      "key": {"const": "observed"},
+      "label": {"template": "Latest reading at gauge {g}", "vars": {"g": {"param": "gauge"}}},
+      "time": {"path": "validTime", "time": {"in": "rfc3339", "zone": "place", "out": "datetime"}},
+      "where": [{"value": {"path": "primary"}, "gt": -900}],
+      "sort": [{"by": {"path": "validTime"}, "time": true, "desc": true}],
+      "limit": 1,
+      "fields": [
+        {
+          "label": "Reading",
+          "template": "{n}: {v} {u}",
+          "vars": {"n": {"path": "^observed.primaryName"}, "v": {"path": "primary", "round": 2, "min_value": -900}, "u": {"path": "^observed.primaryUnits"}}
+        },
+        {
+          "label": "Second reading",
+          "template": "{n}: {v} {u}",
+          "vars": {
+            "n": {"path": "^observed.secondaryName"},
+            "v": {"path": "secondary", "round": 2, "min_value": -900},
+            "u": {"path": "^observed.secondaryUnits"}
+          }
+        },
+        {"label": "Forecast office", "path": "^observed.wfo"}
+      ]
+    },
+    {
+      "each": "forecast.data",
+      "key": {"path": "validTime"},
+      "label": {"template": "Forecast for gauge {g}", "vars": {"g": {"param": "gauge"}}},
+      "time": {"path": "validTime", "time": {"in": "rfc3339", "zone": "place", "out": "datetime"}},
+      "sort": [{"by": {"path": "validTime"}, "time": true}],
+      "limit": 20,
+      "fields": [
+        {
+          "label": "Forecast",
+          "template": "{n}: {v} {u}",
+          "vars": {"n": {"path": "^forecast.primaryName"}, "v": {"path": "primary", "round": 2, "min_value": -900}, "u": {"path": "^forecast.primaryUnits"}}
+        },
+        {
+          "label": "Second forecast",
+          "template": "{n}: {v} {u}",
+          "vars": {
+            "n": {"path": "^forecast.secondaryName"},
+            "v": {"path": "secondary", "round": 2, "min_value": -900},
+            "u": {"path": "^forecast.secondaryUnits"}
+          }
+        },
+        {"label": "Issued", "path": "^forecast.issuedTime", "time": {"in": "rfc3339", "zone": "place", "out": "%Y-%m-%d %H:%M"}}
+      ],
+      "where": [{"value": {"path": "primary"}, "gt": -900}]
+    }
+  ]
+}

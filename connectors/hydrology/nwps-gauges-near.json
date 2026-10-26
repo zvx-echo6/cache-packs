@@ -1,0 +1,101 @@
+{
+  "format": 2,
+  "id": "nwps-gauges-near",
+  "title": "River gauges near the place (NWPS)",
+  "provider": "NOAA National Water Prediction Service",
+  "description": "NWS river forecast gauges within 40 miles of the place (default), nearest first: the latest observed stage and flow (kcfs = thousand cubic feet per second), the next forecast and the flood category (US, NOAA NWPS)",
+  "attribution": "River gauge data and forecasts from the NOAA National Water Prediction Service (water.noaa.gov), public domain",
+  "params": [{"name": "radius_mi", "label": "Radius (miles)", "type": "integer", "default": 40, "min": 5, "max": 150}],
+  "request": {
+    "url": "https://api.water.noaa.gov/nwps/v1/gauges?bbox.xmin={west:$radius_mi:mi}&bbox.ymin={south:$radius_mi:mi}&bbox.xmax={east:$radius_mi:mi}&bbox.ymax={north:$radius_mi:mi}&srid=EPSG_4326",
+    "headers": {"User-Agent": "Cache (https://github.com/zvx-echo6/cache-packs)"}
+  },
+  "refresh_minutes": 30,
+  "quota": {"per_minute": 6, "per_day": 300, "per_month": 6000},
+  "validity": {"fixed_hours": 6},
+  "require": ["gauges"],
+  "items": [
+    {
+      "each": "gauges",
+      "key": {"path": "lid"},
+      "label": {"path": "name"},
+      "time": {"path": "status.observed.validTime", "time": {"in": "rfc3339", "zone": "place", "out": "datetime"}},
+      "point": {"lat": {"path": "latitude"}, "lon": {"path": "longitude"}},
+      "near": {"max": {"param": "radius_mi"}, "unit": "mi"},
+      "sort": [{"distance": true}],
+      "limit": 15,
+      "fields": [
+        {"label": "From the place", "distance": {"point": {"lat": {"path": "latitude"}, "lon": {"path": "longitude"}}, "unit": "mi"}},
+        {
+          "label": "Latest observed",
+          "first_of": [
+            {
+              "template": "{p} {pu}, {s} {su}",
+              "vars": {
+                "p": {"path": "status.observed.primary", "round": 2, "min_value": -900},
+                "pu": {"path": "status.observed.primaryUnit"},
+                "s": {"path": "status.observed.secondary", "round": 2, "min_value": -900},
+                "su": {"path": "status.observed.secondaryUnit"}
+              }
+            },
+            {
+              "template": "{p} {pu}",
+              "vars": {"p": {"path": "status.observed.primary", "round": 2, "min_value": -900}, "pu": {"path": "status.observed.primaryUnit"}}
+            }
+          ]
+        },
+        {
+          "label": "Observed flood category",
+          "path": "status.observed.floodCategory",
+          "lookup": {
+            "no_flooding": "no flooding",
+            "action": "action stage",
+            "minor": "minor flooding",
+            "moderate": "moderate flooding",
+            "major": "major flooding",
+            "not_defined": "not defined",
+            "*": "unknown"
+          }
+        },
+        {
+          "label": "Next forecast",
+          "first_of": [
+            {
+              "template": "{p} {pu}, {s} {su}",
+              "vars": {
+                "p": {"path": "status.forecast.primary", "round": 2, "min_value": -900},
+                "pu": {"path": "status.forecast.primaryUnit"},
+                "s": {"path": "status.forecast.secondary", "round": 2, "min_value": -900},
+                "su": {"path": "status.forecast.secondaryUnit"}
+              }
+            },
+            {
+              "template": "{p} {pu}",
+              "vars": {"p": {"path": "status.forecast.primary", "round": 2, "min_value": -900}, "pu": {"path": "status.forecast.primaryUnit"}}
+            }
+          ]
+        },
+        {
+          "label": "Forecast flood category",
+          "path": "status.forecast.floodCategory",
+          "lookup": {
+            "no_flooding": "no flooding",
+            "action": "action stage",
+            "minor": "minor flooding",
+            "moderate": "moderate flooding",
+            "major": "major flooding",
+            "not_defined": "not defined",
+            "*": "unknown"
+          }
+        },
+        {
+          "label": "Forecast valid",
+          "path": "status.forecast.validTime",
+          "time": {"in": "rfc3339", "zone": "place", "out": "%Y-%m-%d %H:%M", "not_before": "2000-01-01"}
+        },
+        {"label": "Forecast office", "path": "wfo.name"},
+        {"label": "Gauge id", "path": "lid"}
+      ]
+    }
+  ]
+}

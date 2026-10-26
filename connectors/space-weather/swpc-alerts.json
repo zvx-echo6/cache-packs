@@ -1,24 +1,27 @@
 {
-  "format": 1,
+  "format": 2,
   "id": "swpc-alerts",
   "title": "Space weather alerts (NOAA)",
   "provider": "NOAA SWPC",
   "description": "recent NOAA space weather alerts, watches and warnings (solar flares, radiation storms, geomagnetic storms, radio blackouts), newest first; not tied to a place",
   "attribution": "Space weather data from NOAA Space Weather Prediction Center (swpc.noaa.gov), US Government work",
-  "request": { "url": "https://services.swpc.noaa.gov/products/alerts.json" },
+  "request": {"url": "https://services.swpc.noaa.gov/products/alerts.json"},
   "refresh_minutes": 30,
-  "quota": { "per_minute": 5, "per_day": 300, "per_month": 5000 },
-  "validity": { "fixed_hours": 3 },
+  "quota": {"per_minute": 5, "per_day": 300, "per_month": 5000},
+  "validity": {"fixed_hours": 3},
   "require": ["[0].product_id"],
   "items": [
     {
       "each": "^",
-      "key": { "template": "{p} {t}", "vars": { "p": { "path": "product_id" }, "t": { "path": "issue_datetime" } } },
-      "label": { "template": "Space weather message {p}", "vars": { "p": { "path": "product_id" } } },
+      "key": {"template": "{p} {t}", "vars": {"p": {"path": "product_id"}, "t": {"path": "issue_datetime"}}},
+      "label": {"template": "Space weather message {p}", "vars": {"p": {"path": "product_id"}}},
       "fields": [
-        { "label": "Issued (UTC)", "path": "issue_datetime" },
-        { "label": "Message", "path": "message", "max_chars": 600 }
-      ]
+        {"label": "Issued", "path": "issue_datetime", "time": {"in": "utc", "out": "%Y-%m-%d %H:%M %:z"}},
+        {"label": "Message", "path": "message", "max_chars": 600}
+      ],
+      "time": {"path": "issue_datetime", "time": {"in": "utc", "out": "datetime"}},
+      "sort": [{"by": {"path": "issue_datetime", "time": {"in": "utc"}}, "time": true, "desc": true}],
+      "limit": 15
     }
   ]
 }
