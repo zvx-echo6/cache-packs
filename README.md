@@ -28,6 +28,7 @@ Layers are national builds (the whole US, one file per layer); routing packs are
 | [mvum](recipes/mvum.md) | PMTiles layer plus GeoJSON-seq (USFS MVUM), z8-z14 | built |
 | [blm-routes](recipes/blm-routes.md) | PMTiles layer (BLM GTLF public datasets), z6-z14 | built, 98 MB |
 | [valhalla-routing](recipes/valhalla-routing.md) | Release assets, one release per region (Valhalla 3.7.0) | Idaho, Montana, Utah, Oregon, Washington, Nevada, Wyoming |
+| [regions](recipes/regions.md) | Region catalogue JSON plus one polygon per region (Overture divisions, US Census metro areas) | worldwide, see recipe |
 | [basemap-planet](recipes/basemap-planet.md) | Protomaps v4 planet base map, z0-z15, copied to the tile host | see the catalogue |
 
 Not yet built: places, the off-road data file.

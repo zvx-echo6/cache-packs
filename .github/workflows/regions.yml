@@ -49,3 +49,31 @@ jobs:
         if: ${{ (inputs.mode || 'publish') == 'explore' }}
         run: |
           "$RUNNER_TEMP/venv/bin/python" -I regions/explore.py "${{ steps.rel.outputs.release }}"
+      - name: Build
+        if: ${{ (inputs.mode || 'publish') != 'explore' }}
+        env:
+          COUNTRIES: ${{ inputs.countries || '' }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        run: |
+          [[ -z "$COUNTRIES" || "$COUNTRIES" =~ ^[A-Za-z]{2}(,[A-Za-z]{2})*$ ]] || { echo "bad countries"; exit 1; }
+          "$RUNNER_TEMP/venv/bin/python" -I regions/build_regions.py --release "${{ steps.rel.outputs.release }}" \
+            --out "$RUNNER_TEMP/out" --work "$RUNNER_TEMP/work" --countries "$COUNTRIES" --public-url "$R2_PUBLIC_URL"
+          du -sh "$RUNNER_TEMP/out/regions" "$RUNNER_TEMP/out/regions/polygons"; ls -la "$RUNNER_TEMP/out/regions" | head -60
+          df -h / | tail -1
+      - name: Keep id listing
+        if: ${{ (inputs.mode || 'publish') != 'explore' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: region-ids
+          path: |
+            ${{ runner.temp }}/out/ids.tsv
+            ${{ runner.temp }}/out/regions/*.json
+          retention-days: 3
+      - name: Publish to R2
+        if: ${{ (inputs.mode || 'publish') == 'publish' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: regions/publish_regions.sh "$RUNNER_TEMP/out"

@@ -1,0 +1,544 @@
+# Informal regions: each one is a union of catalogue regions (states/provinces, counties, districts).
+# Edit freely: the build reads this file; ids of members must exist in the catalogue (ids.tsv in the build artifact lists them).
+# Fields: id (stable slug you choose), name, kind (multi_state | multi_country | sub_state | valley | metro_alias),
+#         aliases (extra search names), members (catalogue ids; the polygon is their union), description, source.
+# Nesting is automatic: a region whose members are all inside a bigger informal region becomes its child.
+# Where there is no official grouping the source line says so; those are documented choices, not facts.
+version: 1
+regions:
+  - id: us-pacific-northwest
+    name: "Pacific Northwest"
+    kind: multi_state
+    aliases: ["PNW", "Pacific NW", "Cascadia"]
+    description: "Washington, Oregon and Idaho."
+    source: "Common usage (no federal definition). The three-state definition is the narrowest in common use; editable."
+    members:
+      - us-wa  # Washington
+      - us-or  # Oregon
+      - us-id  # Idaho
+  - id: us-intermountain-west
+    name: "Intermountain West"
+    kind: multi_state
+    aliases: ["Intermountain", "Inter-mountain West"]
+    description: "Idaho, Utah, Nevada, Wyoming, Montana and Colorado."
+    source: "Six-state list as specified by the project owner; definitions of the Intermountain West vary (some add Arizona and New Mexico or leave out Montana)."
+    members:
+      - us-id  # Idaho
+      - us-ut  # Utah
+      - us-nv  # Nevada
+      - us-wy  # Wyoming
+      - us-mt  # Montana
+      - us-co  # Colorado
+  - id: us-mountain-west
+    name: "Mountain West"
+    kind: multi_state
+    aliases: ["Mountain States", "Rocky Mountain States"]
+    description: "The eight states of the Mountain division."
+    source: "US Census Bureau, Census Regions and Divisions of the United States (Mountain Division): https://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf"
+    members:
+      - us-az  # Arizona
+      - us-co  # Colorado
+      - us-id  # Idaho
+      - us-mt  # Montana
+      - us-nv  # Nevada
+      - us-nm  # New Mexico
+      - us-ut  # Utah
+      - us-wy  # Wyoming
+  - id: us-great-basin
+    name: "Great Basin"
+    kind: multi_state
+    aliases: ["Basin and Range"]
+    description: "Approximation of the Great Basin (the closed-drainage region of the western US) as whole counties: all of Nevada, the Utah counties of the Wasatch Front and west, and the eastern California and south-eastern Oregon counties in the basin."
+    source: "No official county-based definition exists. Approximated from the Great Basin physiographic/hydrographic region (USGS); counties that are only partly in the basin were included or left out by majority of area. Edit freely."
+    members:
+      - us-nv-carson-city  # Carson City
+      - us-nv-churchill-county  # Churchill County
+      - us-nv-clark-county  # Clark County
+      - us-nv-douglas-county  # Douglas County
+      - us-nv-elko-county  # Elko County
+      - us-nv-esmeralda-county  # Esmeralda County
+      - us-nv-eureka-county  # Eureka County
+      - us-nv-humboldt-county  # Humboldt County
+      - us-nv-lander-county  # Lander County
+      - us-nv-lincoln-county  # Lincoln County
+      - us-nv-lyon-county  # Lyon County
+      - us-nv-mineral-county  # Mineral County
+      - us-nv-nye-county  # Nye County
+      - us-nv-pershing-county  # Pershing County
+      - us-nv-storey-county  # Storey County
+      - us-nv-washoe-county  # Washoe County
+      - us-nv-white-pine-county  # White Pine County
+      - us-ut-beaver-county  # Beaver County
+      - us-ut-box-elder-county  # Box Elder County
+      - us-ut-davis-county  # Davis County
+      - us-ut-juab-county  # Juab County
+      - us-ut-millard-county  # Millard County
+      - us-ut-salt-lake-county  # Salt Lake County
+      - us-ut-tooele-county  # Tooele County
+      - us-ut-utah-county  # Utah County
+      - us-ut-weber-county  # Weber County
+      - us-ca-alpine-county  # Alpine County
+      - us-ca-inyo-county  # Inyo County
+      - us-ca-lassen-county  # Lassen County
+      - us-ca-modoc-county  # Modoc County
+      - us-ca-mono-county  # Mono County
+      - us-or-harney-county  # Harney County
+      - us-or-lake-county  # Lake County
+  - id: us-id-northern-idaho
+    name: "Northern Idaho"
+    kind: sub_state
+    aliases: ["North Idaho", "Idaho Panhandle and Clearwater"]
+    description: "The ten northern counties: the Panhandle and the Clearwater/Lewiston area."
+    source: "Idaho Department of Health and Welfare Public Health Districts 1 (Panhandle) and 2 (North Central). The district boundaries are official; calling districts 1 and 2 'Northern Idaho' is a convention."
+    members:
+      - us-id-benewah-county  # Benewah County
+      - us-id-bonner-county  # Bonner County
+      - us-id-boundary-county  # Boundary County
+      - us-id-kootenai-county  # Kootenai County
+      - us-id-shoshone-county  # Shoshone County
+      - us-id-clearwater-county  # Clearwater County
+      - us-id-idaho-county  # Idaho County
+      - us-id-latah-county  # Latah County
+      - us-id-lewis-county  # Lewis County
+      - us-id-nez-perce-county  # Nez Perce County
+  - id: us-id-central-idaho
+    name: "Central Idaho"
+    kind: sub_state
+    aliases: ["Idaho backcountry", "Central Idaho mountains"]
+    description: "The central mountain counties around the Frank Church and Sawtooth wilderness areas."
+    source: "No official definition. A documented choice: the six counties that hold most of the central Idaho mountains. Overlaps Southern and Eastern Idaho by design."
+    members:
+      - us-id-adams-county  # Adams County
+      - us-id-boise-county  # Boise County
+      - us-id-custer-county  # Custer County
+      - us-id-idaho-county  # Idaho County
+      - us-id-lemhi-county  # Lemhi County
+      - us-id-valley-county  # Valley County
+  - id: us-id-southern-idaho
+    name: "Southern Idaho"
+    kind: sub_state
+    aliases: ["South Idaho", "Snake River Plain"]
+    description: "Southwest, Central, South Central and Southeastern health districts (Boise to Pocatello)."
+    source: "Idaho Department of Health and Welfare Public Health Districts 3, 4, 5 and 6. District boundaries are official; the grouping as 'Southern Idaho' is a convention."
+    members:
+      - us-id-adams-county  # Adams County
+      - us-id-canyon-county  # Canyon County
+      - us-id-gem-county  # Gem County
+      - us-id-owyhee-county  # Owyhee County
+      - us-id-payette-county  # Payette County
+      - us-id-washington-county  # Washington County
+      - us-id-ada-county  # Ada County
+      - us-id-boise-county  # Boise County
+      - us-id-elmore-county  # Elmore County
+      - us-id-valley-county  # Valley County
+      - us-id-blaine-county  # Blaine County
+      - us-id-camas-county  # Camas County
+      - us-id-cassia-county  # Cassia County
+      - us-id-gooding-county  # Gooding County
+      - us-id-jerome-county  # Jerome County
+      - us-id-lincoln-county  # Lincoln County
+      - us-id-minidoka-county  # Minidoka County
+      - us-id-twin-falls-county  # Twin Falls County
+      - us-id-bannock-county  # Bannock County
+      - us-id-bear-lake-county  # Bear Lake County
+      - us-id-bingham-county  # Bingham County
+      - us-id-caribou-county  # Caribou County
+      - us-id-franklin-county  # Franklin County
+      - us-id-oneida-county  # Oneida County
+      - us-id-power-county  # Power County
+  - id: us-id-eastern-idaho
+    name: "Eastern Idaho"
+    kind: sub_state
+    aliases: ["East Idaho", "Upper Snake"]
+    description: "Southeastern and Eastern health districts (Pocatello and Idaho Falls areas)."
+    source: "Idaho Department of Health and Welfare Public Health Districts 6 and 7. Grouping is a convention."
+    members:
+      - us-id-bannock-county  # Bannock County
+      - us-id-bear-lake-county  # Bear Lake County
+      - us-id-bingham-county  # Bingham County
+      - us-id-caribou-county  # Caribou County
+      - us-id-franklin-county  # Franklin County
+      - us-id-oneida-county  # Oneida County
+      - us-id-power-county  # Power County
+      - us-id-bonneville-county  # Bonneville County
+      - us-id-butte-county  # Butte County
+      - us-id-clark-county  # Clark County
+      - us-id-custer-county  # Custer County
+      - us-id-fremont-county  # Fremont County
+      - us-id-jefferson-county  # Jefferson County
+      - us-id-lemhi-county  # Lemhi County
+      - us-id-madison-county  # Madison County
+      - us-id-teton-county  # Teton County
+  - id: us-id-treasure-valley
+    name: "Treasure Valley"
+    kind: valley
+    aliases: ["Boise Valley", "Boise area"]
+    description: "The Boise River valley and its surrounding counties."
+    source: "The five counties of the Boise City-Nampa metropolitan area as delineated by the US Office of Management and Budget (Ada, Boise, Canyon, Gem, Owyhee) plus Payette and Washington, which are commonly included. No single official definition."
+    members:
+      - us-id-ada-county  # Ada County
+      - us-id-boise-county  # Boise County
+      - us-id-canyon-county  # Canyon County
+      - us-id-gem-county  # Gem County
+      - us-id-owyhee-county  # Owyhee County
+      - us-id-payette-county  # Payette County
+      - us-id-washington-county  # Washington County
+  - id: us-id-magic-valley
+    name: "Magic Valley"
+    kind: valley
+    aliases: ["South Central Idaho"]
+    description: "The south central Snake River Plain around Twin Falls."
+    source: "Idaho Public Health District 5 (South Central), whose eight counties match the usual 'Magic Valley' usage."
+    members:
+      - us-id-blaine-county  # Blaine County
+      - us-id-camas-county  # Camas County
+      - us-id-cassia-county  # Cassia County
+      - us-id-gooding-county  # Gooding County
+      - us-id-jerome-county  # Jerome County
+      - us-id-lincoln-county  # Lincoln County
+      - us-id-minidoka-county  # Minidoka County
+      - us-id-twin-falls-county  # Twin Falls County
+  - id: us-ut-northern-utah
+    name: "Northern Utah"
+    kind: sub_state
+    aliases: ["North Utah"]
+    description: "Cache Valley, the Wasatch Front, Summit/Wasatch and Utah counties."
+    source: "Utah Association of Governments regions: Bear River AOG, Wasatch Front (WFRC counties) and Mountainland AOG. Calling this 'Northern Utah' is a convention."
+    members:
+      - us-ut-box-elder-county  # Box Elder County
+      - us-ut-cache-county  # Cache County
+      - us-ut-rich-county  # Rich County
+      - us-ut-davis-county  # Davis County
+      - us-ut-morgan-county  # Morgan County
+      - us-ut-salt-lake-county  # Salt Lake County
+      - us-ut-tooele-county  # Tooele County
+      - us-ut-weber-county  # Weber County
+      - us-ut-summit-county  # Summit County
+      - us-ut-utah-county  # Utah County
+      - us-ut-wasatch-county  # Wasatch County
+  - id: us-ut-southern-utah
+    name: "Southern Utah"
+    kind: sub_state
+    aliases: ["South Utah", "Canyon Country"]
+    description: "Everything south of Utah County except the Uintah Basin: central, south-western and south-eastern Utah."
+    source: "Utah Association of Governments regions: Five County AOG, Six County AOG and Southeastern Utah AOG. The Uintah Basin (Daggett, Duchesne, Uintah) belongs to neither Northern nor Southern Utah here."
+    members:
+      - us-ut-beaver-county  # Beaver County
+      - us-ut-garfield-county  # Garfield County
+      - us-ut-iron-county  # Iron County
+      - us-ut-kane-county  # Kane County
+      - us-ut-washington-county  # Washington County
+      - us-ut-juab-county  # Juab County
+      - us-ut-millard-county  # Millard County
+      - us-ut-piute-county  # Piute County
+      - us-ut-sanpete-county  # Sanpete County
+      - us-ut-sevier-county  # Sevier County
+      - us-ut-wayne-county  # Wayne County
+      - us-ut-carbon-county  # Carbon County
+      - us-ut-emery-county  # Emery County
+      - us-ut-grand-county  # Grand County
+      - us-ut-san-juan-county  # San Juan County
+  - id: us-ut-wasatch-front
+    name: "Wasatch Front"
+    kind: valley
+    aliases: ["Wasatch Front urban corridor"]
+    description: "The urban corridor along the Wasatch Range from Ogden to Provo."
+    source: "Wasatch Front Regional Council area (Box Elder, Davis, Morgan, Salt Lake, Tooele, Weber) plus Utah County from Mountainland AOG. Provo-Orem is often included; Summit and Wasatch are not."
+    members:
+      - us-ut-box-elder-county  # Box Elder County
+      - us-ut-davis-county  # Davis County
+      - us-ut-morgan-county  # Morgan County
+      - us-ut-salt-lake-county  # Salt Lake County
+      - us-ut-tooele-county  # Tooele County
+      - us-ut-utah-county  # Utah County
+      - us-ut-weber-county  # Weber County
+  - id: us-ut-salt-lake-valley
+    name: "Salt Lake Valley"
+    kind: valley
+    aliases: ["SLV", "Salt Lake area"]
+    description: "The valley that holds Salt Lake City and its suburbs."
+    source: "Approximated by Salt Lake County, which covers the valley floor and the Wasatch and Oquirrh slopes around it. No official valley boundary."
+    members:
+      - us-ut-salt-lake-county  # Salt Lake County
+  - id: us-ca-socal
+    name: "Southern California"
+    kind: sub_state
+    aliases: ["SoCal", "So Cal", "So-Cal"]
+    description: "The ten southern counties: Imperial to San Luis Obispo and Kern."
+    source: "The common 10-county definition (the six counties of the Southern California Association of Governments plus San Diego, Santa Barbara, San Luis Obispo and Kern). California has no legally adopted North/South split; edit if you prefer a different line."
+    members:
+      - us-ca-imperial-county  # Imperial County
+      - us-ca-kern-county  # Kern County
+      - us-ca-los-angeles-county  # Los Angeles County
+      - us-ca-orange-county  # Orange County
+      - us-ca-riverside-county  # Riverside County
+      - us-ca-san-bernardino-county  # San Bernardino County
+      - us-ca-san-diego-county  # San Diego County
+      - us-ca-san-luis-obispo-county  # San Luis Obispo County
+      - us-ca-santa-barbara-county  # Santa Barbara County
+      - us-ca-ventura-county  # Ventura County
+  - id: us-ca-norcal
+    name: "Northern California"
+    kind: sub_state
+    aliases: ["NorCal", "Nor Cal", "Northern Cal"]
+    description: "All California counties not in the 10-county Southern California definition (48 counties)."
+    source: "The complement of the 10-county Southern California definition. No official definition; includes the Central Coast and the Central Valley north of Kern."
+    members:
+      - us-ca-alameda-county  # Alameda County
+      - us-ca-alpine-county  # Alpine County
+      - us-ca-amador-county  # Amador County
+      - us-ca-butte-county  # Butte County
+      - us-ca-calaveras-county  # Calaveras County
+      - us-ca-colusa-county  # Colusa County
+      - us-ca-contra-costa-county  # Contra Costa County
+      - us-ca-del-norte-county  # Del Norte County
+      - us-ca-el-dorado-county  # El Dorado County
+      - us-ca-fresno-county  # Fresno County
+      - us-ca-glenn-county  # Glenn County
+      - us-ca-humboldt-county  # Humboldt County
+      - us-ca-inyo-county  # Inyo County
+      - us-ca-kings-county  # Kings County
+      - us-ca-lake-county  # Lake County
+      - us-ca-lassen-county  # Lassen County
+      - us-ca-madera-county  # Madera County
+      - us-ca-marin-county  # Marin County
+      - us-ca-mariposa-county  # Mariposa County
+      - us-ca-mendocino-county  # Mendocino County
+      - us-ca-merced-county  # Merced County
+      - us-ca-modoc-county  # Modoc County
+      - us-ca-mono-county  # Mono County
+      - us-ca-monterey-county  # Monterey County
+      - us-ca-napa-county  # Napa County
+      - us-ca-nevada-county  # Nevada County
+      - us-ca-placer-county  # Placer County
+      - us-ca-plumas-county  # Plumas County
+      - us-ca-sacramento-county  # Sacramento County
+      - us-ca-san-benito-county  # San Benito County
+      - us-ca-san-francisco  # San Francisco
+      - us-ca-san-joaquin-county  # San Joaquin County
+      - us-ca-san-mateo-county  # San Mateo County
+      - us-ca-santa-clara-county  # Santa Clara County
+      - us-ca-santa-cruz  # Santa Cruz
+      - us-ca-shasta-county  # Shasta County
+      - us-ca-sierra-county  # Sierra County
+      - us-ca-siskiyou-county  # Siskiyou County
+      - us-ca-solano-county  # Solano County
+      - us-ca-sonoma-county  # Sonoma County
+      - us-ca-stanislaus-county  # Stanislaus County
+      - us-ca-sutter-county  # Sutter County
+      - us-ca-tehama-county  # Tehama County
+      - us-ca-trinity-county  # Trinity County
+      - us-ca-tulare-county  # Tulare County
+      - us-ca-tuolumne-county  # Tuolumne County
+      - us-ca-yolo-county  # Yolo County
+      - us-ca-yuba-county  # Yuba County
+  - id: us-ca-bay-area
+    name: "San Francisco Bay Area"
+    kind: metro_alias
+    aliases: ["Bay Area", "SF Bay Area", "The Bay"]
+    description: "The nine counties bordering San Francisco Bay."
+    source: "Association of Bay Area Governments / Metropolitan Transportation Commission nine-county Bay Area (official regional agencies)."
+    members:
+      - us-ca-alameda-county  # Alameda County
+      - us-ca-contra-costa-county  # Contra Costa County
+      - us-ca-marin-county  # Marin County
+      - us-ca-napa-county  # Napa County
+      - us-ca-san-francisco  # San Francisco
+      - us-ca-san-mateo-county  # San Mateo County
+      - us-ca-santa-clara-county  # Santa Clara County
+      - us-ca-solano-county  # Solano County
+      - us-ca-sonoma-county  # Sonoma County
+  - id: us-ca-central-valley
+    name: "Central Valley"
+    kind: valley
+    aliases: ["Great Central Valley", "San Joaquin Valley and Sacramento Valley"]
+    description: "The Sacramento and San Joaquin valleys: 18 counties."
+    source: "The 18-county Central Valley used by the Great Valley Center (San Joaquin Valley: Fresno, Kern, Kings, Madera, Merced, San Joaquin, Stanislaus, Tulare; Sacramento Valley: Butte, Colusa, Glenn, Placer, Sacramento, Shasta, Sutter, Tehama, Yolo, Yuba). No state-adopted boundary."
+    members:
+      - us-ca-butte-county  # Butte County
+      - us-ca-colusa-county  # Colusa County
+      - us-ca-fresno-county  # Fresno County
+      - us-ca-glenn-county  # Glenn County
+      - us-ca-kern-county  # Kern County
+      - us-ca-kings-county  # Kings County
+      - us-ca-madera-county  # Madera County
+      - us-ca-merced-county  # Merced County
+      - us-ca-placer-county  # Placer County
+      - us-ca-sacramento-county  # Sacramento County
+      - us-ca-san-joaquin-county  # San Joaquin County
+      - us-ca-shasta-county  # Shasta County
+      - us-ca-stanislaus-county  # Stanislaus County
+      - us-ca-sutter-county  # Sutter County
+      - us-ca-tehama-county  # Tehama County
+      - us-ca-tulare-county  # Tulare County
+      - us-ca-yolo-county  # Yolo County
+      - us-ca-yuba-county  # Yuba County
+  - id: us-or-eastern-oregon
+    name: "Eastern Oregon"
+    kind: sub_state
+    aliases: ["East Oregon", "Central and Eastern Oregon"]
+    description: "Counties east of the Cascade crest (includes Central Oregon)."
+    source: "Common usage: counties east of the Cascades. No official definition; Hood River, Klamath and Deschutes counties are included, which some lists treat separately."
+    members:
+      - us-or-baker-county  # Baker County
+      - us-or-crook-county  # Crook County
+      - us-or-deschutes-county  # Deschutes County
+      - us-or-gilliam-county  # Gilliam County
+      - us-or-grant-county  # Grant County
+      - us-or-harney-county  # Harney County
+      - us-or-hood-river-county  # Hood River County
+      - us-or-jefferson-county  # Jefferson County
+      - us-or-klamath-county  # Klamath County
+      - us-or-lake-county  # Lake County
+      - us-or-malheur-county  # Malheur County
+      - us-or-morrow-county  # Morrow County
+      - us-or-sherman-county  # Sherman County
+      - us-or-umatilla-county  # Umatilla County
+      - us-or-union-county  # Union County
+      - us-or-wallowa-county  # Wallowa County
+      - us-or-wasco-county  # Wasco County
+      - us-or-wheeler-county  # Wheeler County
+  - id: us-or-western-oregon
+    name: "Western Oregon"
+    kind: sub_state
+    aliases: ["West Oregon", "Willamette Valley and coast"]
+    description: "Counties west of the Cascade crest."
+    source: "The complement of Eastern Oregon (18 counties)."
+    members:
+      - us-or-benton-county  # Benton County
+      - us-or-clackamas-county  # Clackamas County
+      - us-or-clatsop-county  # Clatsop County
+      - us-or-columbia-county  # Columbia County
+      - us-or-coos-county  # Coos County
+      - us-or-curry-county  # Curry County
+      - us-or-douglas-county  # Douglas County
+      - us-or-jackson-county  # Jackson County
+      - us-or-josephine-county  # Josephine County
+      - us-or-lane-county  # Lane County
+      - us-or-lincoln-county  # Lincoln County
+      - us-or-linn-county  # Linn County
+      - us-or-marion-county  # Marion County
+      - us-or-multnomah-county  # Multnomah County
+      - us-or-polk-county  # Polk County
+      - us-or-tillamook-county  # Tillamook County
+      - us-or-washington-county  # Washington County
+      - us-or-yamhill-county  # Yamhill County
+  - id: us-wa-eastern-washington
+    name: "Eastern Washington"
+    kind: sub_state
+    aliases: ["East Washington", "Inland Northwest"]
+    description: "Counties east of the Cascade crest."
+    source: "Common usage. No official definition; Skamania County, which straddles the crest, is placed in Western Washington."
+    members:
+      - us-wa-adams-county  # Adams County
+      - us-wa-asotin-county  # Asotin County
+      - us-wa-benton-county  # Benton County
+      - us-wa-chelan-county  # Chelan County
+      - us-wa-columbia-county  # Columbia County
+      - us-wa-douglas-county  # Douglas County
+      - us-wa-ferry-county  # Ferry County
+      - us-wa-franklin-county  # Franklin County
+      - us-wa-garfield-county  # Garfield County
+      - us-wa-grant-county  # Grant County
+      - us-wa-kittitas-county  # Kittitas County
+      - us-wa-klickitat-county  # Klickitat County
+      - us-wa-lincoln-county  # Lincoln County
+      - us-wa-okanogan-county  # Okanogan County
+      - us-wa-pend-oreille-county  # Pend Oreille County
+      - us-wa-spokane-county  # Spokane County
+      - us-wa-stevens-county  # Stevens County
+      - us-wa-walla-walla-county  # Walla Walla County
+      - us-wa-whitman-county  # Whitman County
+      - us-wa-yakima-county  # Yakima County
+  - id: us-wa-western-washington
+    name: "Western Washington"
+    kind: sub_state
+    aliases: ["West Washington", "Puget Sound region"]
+    description: "Counties west of the Cascade crest."
+    source: "The complement of Eastern Washington (19 counties)."
+    members:
+      - us-wa-clallam-county  # Clallam County
+      - us-wa-clark-county  # Clark County
+      - us-wa-cowlitz-county  # Cowlitz County
+      - us-wa-grays-harbor-county  # Grays Harbor County
+      - us-wa-island-county  # Island County
+      - us-wa-jefferson-county  # Jefferson County
+      - us-wa-king-county  # King County
+      - us-wa-kitsap-county  # Kitsap County
+      - us-wa-lewis-county  # Lewis County
+      - us-wa-mason-county  # Mason County
+      - us-wa-pacific-county  # Pacific County
+      - us-wa-pierce-county  # Pierce County
+      - us-wa-san-juan-county  # San Juan County
+      - us-wa-skagit-county  # Skagit County
+      - us-wa-skamania-county  # Skamania County
+      - us-wa-snohomish-county  # Snohomish County
+      - us-wa-thurston-county  # Thurston County
+      - us-wa-wahkiakum-county  # Wahkiakum County
+      - us-wa-whatcom-county  # Whatcom County
+  - id: gb-sct-highlands-and-islands
+    name: "Scottish Highlands and Islands"
+    kind: sub_state
+    aliases: ["Scottish Highlands", "Highlands", "Highlands of Scotland"]
+    description: "The Highland council area plus Argyll and Bute, Moray and the island council areas."
+    source: "Highlands and Islands Enterprise operating area (Scottish Government agency), which comprises these six council areas. The mainland 'Highlands' proper is mostly the Highland council area; edit members to narrow it."
+    members:
+      - gb-sct-highland  # Highland
+      - gb-sct-argyll-and-bute  # Argyll and Bute
+      - gb-sct-moray  # Moray
+      - gb-sct-na-h-eileanan-siar  # Na h-Eileanan Siar
+      - gb-sct-orkney-islands  # Orkney Islands
+      - gb-sct-shetland-islands  # Shetland Islands
+  - id: de-by-upper-bavaria
+    name: "Upper Bavaria"
+    kind: sub_state
+    aliases: ["Oberbayern"]
+    description: "The Regierungsbezirk Oberbayern: 20 districts (Landkreise) and 3 independent cities."
+    source: "Bavarian State Government administrative district Oberbayern (Regierungsbezirk). Official: Landkreise Altötting, Bad Tölz-Wolfratshausen, Berchtesgadener Land, Dachau, Ebersberg, Eichstätt, Erding, Freising, Fürstenfeldbruck, Garmisch-Partenkirchen, Landsberg am Lech, Miesbach, Mühldorf am Inn, München, Neuburg-Schrobenhausen, Pfaffenhofen an der Ilm, Rosenheim, Starnberg, Traunstein, Weilheim-Schongau and the cities Ingolstadt, München, Rosenheim."
+    members:
+      - de-by-ingolstadt  # Ingolstadt
+      - de-by-munich  # Munich
+      - de-by-rosenheim  # Rosenheim
+      - de-by-landkreis-altotting  # Landkreis Altötting
+      - de-by-landkreis-bad-tolz-wolfratshausen  # Landkreis Bad Tölz-Wolfratshausen
+      - de-by-landkreis-berchtesgadener-land  # Landkreis Berchtesgadener Land
+      - de-by-landkreis-dachau  # Landkreis Dachau
+      - de-by-landkreis-ebersberg  # Landkreis Ebersberg
+      - de-by-landkreis-eichstatt  # Landkreis Eichstätt
+      - de-by-landkreis-erding  # Landkreis Erding
+      - de-by-landkreis-freising  # Landkreis Freising
+      - de-by-landkreis-furstenfeldbruck  # Landkreis Fürstenfeldbruck
+      - de-by-landkreis-garmisch-partenkirchen  # Landkreis Garmisch-Partenkirchen
+      - de-by-landkreis-landsberg-am-lech  # Landkreis Landsberg am Lech
+      - de-by-landkreis-miesbach  # Landkreis Miesbach
+      - de-by-landkreis-muhldorf-am-inn  # Landkreis Mühldorf am Inn
+      - de-by-landkreis-munchen  # Landkreis München
+      - de-by-landkreis-neuburg-schrobenhausen  # Landkreis Neuburg-Schrobenhausen
+      - de-by-landkreis-pfaffenhofen-an-der-ilm  # Landkreis Pfaffenhofen an der Ilm
+      - de-by-landkreis-rosenheim  # Landkreis Rosenheim
+      - de-by-landkreis-starnberg  # Landkreis Starnberg
+      - de-by-landkreis-traunstein  # Landkreis Traunstein
+      - de-by-landkreis-weilheim-schongau  # Landkreis Weilheim-Schongau
+  - id: ca-bc-lower-mainland
+    name: "Lower Mainland"
+    kind: sub_state
+    aliases: ["Greater Vancouver and Fraser Valley", "Vancouver area"]
+    description: "Metro Vancouver and the Fraser Valley."
+    source: "Common definition (Metro Vancouver and Fraser Valley regional districts). BC Stats groups a wider Mainland/Southwest development region (adds Squamish-Lillooet, Sunshine Coast, qathet); edit members to widen it."
+    members:
+      - ca-bc-metro-vancouver-regional-district  # Metro Vancouver Regional District
+      - ca-bc-fraser-valley-regional-district  # Fraser Valley Regional District
+  - id: ar-cl-patagonia
+    name: "Patagonia"
+    kind: multi_country
+    aliases: ["Patagonia (Argentina and Chile)", "Patagonia argentina y chilena"]
+    description: "The Argentine provinces of Neuquén, Río Negro, Chubut, Santa Cruz and Tierra del Fuego and the Chilean regions of Aysén and Magallanes."
+    source: "Common geographic definition. Argentina's legal Patagonia region (Ley 23.272) also takes in La Pampa and southern Buenos Aires province, and Chilean usage often adds Los Lagos; both are left out here. Edit members to change that."
+    members:
+      - ar-q  # Neuquén
+      - ar-r  # Río Negro
+      - ar-u  # Chubut
+      - ar-z  # Santa Cruz
+      - ar-v  # Tierra del Fuego
+      - cl-ai  # Aysen del General Carlos Ibanez del Campo Region
+      - cl-ma  # Magallanes and Chilean Antarctica Region
