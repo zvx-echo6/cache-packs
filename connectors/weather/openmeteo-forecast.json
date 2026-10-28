@@ -39,6 +39,26 @@
           "in": "local"
         }
       },
+      "ends": {
+        "calc": {
+          "op": "add",
+          "args": [
+            {
+              "path": "current.time",
+              "time": {
+                "in": "local",
+                "out": "%s"
+              }
+            },
+            {
+              "const": 10800
+            }
+          ]
+        },
+        "time": {
+          "in": "unix"
+        }
+      },
       "fields": [
         {
           "label": "Temperature",
@@ -116,7 +136,7 @@
         "path": "@",
         "time": {
           "in": "local",
-          "out": "%a %d %b"
+          "out": "%a %b %-d"
         }
       },
       "time": {
@@ -126,15 +146,35 @@
           "out": "date"
         }
       },
+      "ends": {
+        "calc": {
+          "op": "add",
+          "args": [
+            {
+              "path": "@",
+              "time": {
+                "in": "local",
+                "out": "%s"
+              }
+            },
+            {
+              "const": 86400
+            }
+          ]
+        },
+        "time": {
+          "in": "unix"
+        }
+      },
       "fields": [
         {
-          "label": "High",
+          "label": "Daytime high",
           "path": "^daily.temperature_2m_max[#]",
           "round": 0,
           "suffix": " °F"
         },
         {
-          "label": "Low",
+          "label": "Low (early morning)",
           "path": "^daily.temperature_2m_min[#]",
           "round": 0,
           "suffix": " °F"
