@@ -5,7 +5,7 @@
   "maintainer": "Cache project",
   "homepage": "https://github.com/zvx-echo6/cache-packs/tree/main/connectors",
   "base_url": "https://cache.echo6.co/connectors/",
-  "updated": "2026-10-26",
+  "updated": "2026-10-28",
   "connectors": [
     {
       "id": "nws-alerts-point",
