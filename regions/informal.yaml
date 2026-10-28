@@ -29,6 +29,26 @@ regions:
       - us-wy  # Wyoming
       - us-mt  # Montana
       - us-co  # Colorado
+  - id: us-west
+    name: "US West"
+    kind: multi_state
+    aliases: ["Western United States", "The West", "American West", "Western US"]
+    description: "The thirteen states of the West census region."
+    source: "US Census Bureau, Census Regions and Divisions of the United States (West Region: Mountain and Pacific divisions): https://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf"
+    members:
+      - us-ak  # Alaska
+      - us-az  # Arizona
+      - us-ca  # California
+      - us-co  # Colorado
+      - us-hi  # Hawaii
+      - us-id  # Idaho
+      - us-mt  # Montana
+      - us-nv  # Nevada
+      - us-nm  # New Mexico
+      - us-or  # Oregon
+      - us-ut  # Utah
+      - us-wa  # Washington
+      - us-wy  # Wyoming
   - id: us-mountain-west
     name: "Mountain West"
     kind: multi_state
