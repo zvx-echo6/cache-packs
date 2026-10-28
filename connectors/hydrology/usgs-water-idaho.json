@@ -1,0 +1,53 @@
+{
+  "format": 2,
+  "id": "usgs-water-idaho",
+  "title": "River flow and gage height near the place, Idaho (USGS)",
+  "provider": "USGS Water Services",
+  "description": "latest river discharge (cfs) and gage height (ft) at active USGS stream gages in Idaho within 60 miles of the place (default), nearest first (USGS)",
+  "attribution": "Water data from the US Geological Survey (waterservices.usgs.gov), public domain; provisional data is subject to revision",
+  "params": [{"name": "radius_mi", "label": "Radius (miles)", "type": "integer", "default": 60, "min": 5, "max": 400}],
+  "request": {
+    "url": "https://waterservices.usgs.gov/nwis/iv/?format=json&stateCd=ID&parameterCd=00060,00065&siteStatus=active&siteType=ST",
+    "timeout_seconds": 90
+  },
+  "refresh_minutes": 30,
+  "quota": {"per_minute": 10, "per_day": 500, "per_month": 10000},
+  "validity": {"fixed_hours": 3},
+  "require": ["value.timeSeries"],
+  "items": [
+    {
+      "each": "value.timeSeries",
+      "key": {"path": "name"},
+      "label": {"template": "{site}", "vars": {"site": {"path": "sourceInfo.siteName"}}},
+      "time": {"path": "values[0].value[-1].dateTime", "time": {"in": "rfc3339", "zone": "place", "out": "datetime"}},
+      "point": {"lat": {"path": "sourceInfo.geoLocation.geogLocation.latitude"}, "lon": {"path": "sourceInfo.geoLocation.geogLocation.longitude"}},
+      "where": [
+        {"value": {"path": "values[0].value[-1].value"}, "exists": true},
+        {"value": {"path": "values[0].value[-1].dateTime", "time": {"in": "rfc3339"}}, "max_age_hours": 48}
+      ],
+      "near": {"max": {"param": "radius_mi"}, "unit": "mi"},
+      "sort": [{"distance": true}],
+      "limit": 30,
+      "fields": [
+        {"label": "Measurement", "path": "variable.variableDescription"},
+        {
+          "label": "Latest reading",
+          "template": "{v} {u}",
+          "vars": {
+            "v": {"path": "values[0].value[-1].value", "omit_if": ["-999999", "-999999.0"]},
+            "u": {"path": "variable.unit.unitCode", "lookup": {"ft3/s": "cfs", "ft": "ft"}}
+          }
+        },
+        {
+          "label": "From the place",
+          "distance": {
+            "point": {"lat": {"path": "sourceInfo.geoLocation.geogLocation.latitude"}, "lon": {"path": "sourceInfo.geoLocation.geogLocation.longitude"}},
+            "unit": "mi"
+          }
+        },
+        {"label": "Site number", "path": "sourceInfo.siteCode[0].value"},
+        {"label": "Data status", "path": "values[0].value[-1].qualifiers", "lookup": {"P": "provisional", "A": "approved", "*": "see USGS"}}
+      ]
+    }
+  ]
+}

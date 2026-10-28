@@ -1,0 +1,41 @@
+{
+  "format": 2,
+  "id": "usgs-quakes-near",
+  "title": "Earthquakes near the place (USGS)",
+  "provider": "USGS",
+  "description": "recent earthquakes of magnitude 2 or more near the place (300 km by default), newest first, with distance and direction (USGS)",
+  "attribution": "Earthquake data from the US Geological Survey (earthquake.usgs.gov), public domain",
+  "params": [
+    {"name": "radius_km", "label": "Radius (km)", "type": "integer", "default": 300, "min": 10, "max": 1000},
+    {"name": "min_magnitude", "label": "Smallest magnitude", "type": "number", "default": 2, "min": 0, "max": 8}
+  ],
+  "request": {
+    "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude={lat}&longitude={lon}&maxradiuskm={param:radius_km}&minmagnitude={param:min_magnitude}&orderby=time&limit=20"
+  },
+  "refresh_minutes": 15,
+  "quota": {"per_minute": 10, "per_day": 500, "per_month": 10000},
+  "validity": {"fixed_hours": 2},
+  "require": ["features"],
+  "items": [
+    {
+      "each": "features",
+      "key": {"path": "id"},
+      "label": {"path": "properties.title"},
+      "time": {"path": "properties.time", "time": {"in": "unix_ms", "out": "datetime"}},
+      "point": {"lat": {"path": "geometry.coordinates[1]"}, "lon": {"path": "geometry.coordinates[0]"}},
+      "sort": [{"by": {"path": "properties.time"}, "number": true, "desc": true}],
+      "fields": [
+        {"label": "Magnitude", "path": "properties.mag", "round": 1},
+        {"label": "When", "path": "properties.time", "time": {"in": "unix_ms", "out": "%Y-%m-%d %H:%M"}},
+        {"label": "Location", "path": "properties.place"},
+        {"label": "From the place", "distance": {"geometry": "geometry", "unit": "mi"}},
+        {"label": "Depth", "path": "geometry.coordinates[2]", "round": 0, "suffix": " km"},
+        {"label": "Felt reports", "path": "properties.felt"},
+        {"label": "Shaking alert (PAGER)", "path": "properties.alert"},
+        {"label": "Tsunami", "path": "properties.tsunami", "lookup": {"1": "tsunami message issued"}},
+        {"label": "Review status", "path": "properties.status"},
+        {"label": "Details", "path": "properties.url"}
+      ]
+    }
+  ]
+}

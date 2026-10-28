@@ -1,0 +1,61 @@
+{
+  "format": 2,
+  "id": "firms-viirs-near",
+  "title": "Satellite fire detections near the place (NASA FIRMS)",
+  "provider": "NASA FIRMS",
+  "description": "VIIRS satellite hotspots (possible fires) detected in the last day within 100 km of the place (default), nearest first, with time, confidence and fire power; needs a free NASA FIRMS map key",
+  "attribution": "Active fire data from NASA LANCE / FIRMS (firms.modaps.eosdis.nasa.gov), VIIRS; a detection is a hot spot seen from orbit, not a confirmed fire",
+  "api_key": {"alias": "firms", "required": true},
+  "params": [
+    {"name": "radius_km", "label": "Radius (km)", "type": "integer", "default": 100, "min": 5, "max": 300},
+    {
+      "name": "satellite",
+      "label": "Satellite",
+      "type": "choice",
+      "choices": ["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"],
+      "default": "VIIRS_SNPP_NRT"
+    },
+    {"name": "days", "label": "Days back (1 to 5)", "type": "integer", "default": 1, "min": 1, "max": 5}
+  ],
+  "request": {"url": "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{api_key}/{param:satellite}/{bbox:$radius_km:km|raw}/{param:days}", "response": "csv"},
+  "refresh_minutes": 30,
+  "quota": {"per_minute": 6, "per_day": 300, "per_month": 6000},
+  "validity": {"fixed_hours": 6},
+  "require": ["[0].latitude"],
+  "items": [
+    {
+      "each": "^",
+      "key": {
+        "template": "{la},{lo},{d}{t}",
+        "vars": {"la": {"path": "latitude"}, "lo": {"path": "longitude"}, "d": {"path": "acq_date"}, "t": {"path": "acq_time"}}
+      },
+      "label": {
+        "template": "Satellite fire detection ({c} confidence)",
+        "vars": {"c": {"path": "confidence", "lookup": {"n": "nominal", "h": "high", "l": "low", "*": "unrated"}}}
+      },
+      "time": {
+        "template": "{d} {t}",
+        "vars": {"d": {"path": "acq_date"}, "t": {"path": "acq_time"}},
+        "time": {"in": "pattern", "pattern": "%Y-%m-%d %H%M", "assume": "utc", "zone": "place", "out": "datetime"}
+      },
+      "point": {"lat": {"path": "latitude"}, "lon": {"path": "longitude"}},
+      "near": {"max": {"param": "radius_km"}, "unit": "km"},
+      "where": [{"value": {"path": "confidence"}, "not_in": ["l"]}],
+      "sort": [{"distance": true}],
+      "limit": 20,
+      "fields": [
+        {"label": "From the place", "distance": {"point": {"lat": {"path": "latitude"}, "lon": {"path": "longitude"}}, "unit": "mi"}},
+        {
+          "label": "Detected",
+          "template": "{d} {t}",
+          "vars": {"d": {"path": "acq_date"}, "t": {"path": "acq_time"}},
+          "time": {"in": "pattern", "pattern": "%Y-%m-%d %H%M", "assume": "utc", "zone": "place", "out": "%Y-%m-%d %H:%M"}
+        },
+        {"label": "Fire radiative power", "path": "frp", "suffix": " MW"},
+        {"label": "Brightness", "path": "bright_ti4", "round": 0, "suffix": " K"},
+        {"label": "Day or night pass", "path": "daynight", "lookup": {"D": "day", "N": "night"}},
+        {"label": "Satellite", "path": "instrument"}
+      ]
+    }
+  ]
+}

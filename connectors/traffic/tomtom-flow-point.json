@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "id": "tomtom-flow-point",
+  "title": "Traffic flow at the place (TomTom)",
+  "provider": "TomTom",
+  "description": "live traffic speed on the road segment nearest the place compared with free-flow speed, and whether the road is closed (TomTom; needs a free TomTom key)",
+  "attribution": "Traffic data by TomTom (tomtom.com); use is subject to the TomTom developer terms",
+  "request": { "url": "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key={api_key}&point={lat:5},{lon:5}&unit=mph" },
+  "api_key": { "alias": "tomtom", "required": true },
+  "refresh_minutes": 10,
+  "quota": { "per_minute": 60, "per_day": 2500 },
+  "validity": { "fixed_hours": 1 },
+  "require": ["flowSegmentData.currentSpeed"],
+  "items": [
+    {
+      "key": { "const": "flow" },
+      "label": { "const": "Traffic flow on the nearest road" },
+      "point": { "lat": { "path": "flowSegmentData.coordinates.coordinate[0].latitude" }, "lon": { "path": "flowSegmentData.coordinates.coordinate[0].longitude" } },
+      "fields": [
+        { "label": "Current speed", "path": "flowSegmentData.currentSpeed", "round": 0, "suffix": " mph" },
+        { "label": "Normal speed (free flow)", "path": "flowSegmentData.freeFlowSpeed", "round": 0, "suffix": " mph" },
+        { "label": "Travel time now", "path": "flowSegmentData.currentTravelTime", "scale": 0.0166667, "round": 1, "suffix": " min" },
+        { "label": "Travel time normally", "path": "flowSegmentData.freeFlowTravelTime", "scale": 0.0166667, "round": 1, "suffix": " min" },
+        { "label": "Road closed", "path": "flowSegmentData.roadClosure", "lookup": { "true": "yes" } },
+        { "label": "Data confidence", "path": "flowSegmentData.confidence", "scale": 100, "round": 0, "suffix": "%" },
+        { "label": "Road class", "path": "flowSegmentData.frc", "lookup": { "FRC0": "motorway or major road", "FRC1": "major road", "FRC2": "other major road", "FRC3": "secondary road", "FRC4": "local connecting road", "FRC5": "local high-importance road", "FRC6": "local road" } }
+      ]
+    }
+  ]
+}

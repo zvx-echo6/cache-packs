@@ -1,0 +1,35 @@
+{
+  "format": 2,
+  "id": "swpc-scales",
+  "title": "Space weather scales (NOAA)",
+  "provider": "NOAA SWPC",
+  "description": "current NOAA space weather scales (radio blackouts R, solar radiation storms S, geomagnetic storms G) and the 3-day outlook; not tied to a place",
+  "attribution": "Space weather data from NOAA Space Weather Prediction Center (swpc.noaa.gov), US Government work",
+  "request": {"url": "https://services.swpc.noaa.gov/products/noaa-scales.json"},
+  "refresh_minutes": 30,
+  "quota": {"per_minute": 5, "per_day": 300, "per_month": 5000},
+  "validity": {"fixed_hours": 3},
+  "require": ["0.G"],
+  "items": [
+    {
+      "each": "^",
+      "key": {"path": "@key"},
+      "label": {
+        "first_of": [
+          {"path": "@key", "lookup": {"-1": "Space weather yesterday (NOAA scales)", "0": "Space weather now (NOAA scales)"}},
+          {"template": "Space weather outlook {d}", "vars": {"d": {"path": "DateStamp"}}}
+        ]
+      },
+      "time": {"template": "{d} {t}", "vars": {"d": {"path": "DateStamp"}, "t": {"path": "TimeStamp"}}, "time": {"in": "utc", "out": "datetime"}},
+      "sort": [{"by": {"path": "@key"}, "number": true}],
+      "fields": [
+        {"label": "Radio blackouts", "template": "R{s} {t}", "vars": {"s": {"path": "R.Scale"}, "t": {"path": "R.Text"}}},
+        {"label": "Solar radiation storms", "template": "S{s} {t}", "vars": {"s": {"path": "S.Scale"}, "t": {"path": "S.Text"}}},
+        {"label": "Geomagnetic storms", "template": "G{s} {t}", "vars": {"s": {"path": "G.Scale"}, "t": {"path": "G.Text"}}},
+        {"label": "Minor radio blackout (R1-R2) chance", "path": "R.MinorProb", "suffix": "%"},
+        {"label": "Major radio blackout (R3-R5) chance", "path": "R.MajorProb", "suffix": "%"},
+        {"label": "Radiation storm (S1 or more) chance", "path": "S.Prob", "suffix": "%"}
+      ]
+    }
+  ]
+}

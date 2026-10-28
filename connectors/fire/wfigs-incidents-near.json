@@ -1,0 +1,47 @@
+{
+  "format": 2,
+  "id": "wfigs-incidents-near",
+  "title": "Wildfires near the place (WFIGS)",
+  "provider": "NIFC WFIGS",
+  "description": "current wildfire incidents within 150 miles of the place (default), largest first, with size, containment, county, discovery time and distance (US, NIFC WFIGS)",
+  "attribution": "Wildfire incidents from the National Interagency Fire Center WFIGS (data-nifc.opendata.arcgis.com), public domain",
+  "params": [{"name": "radius_mi", "label": "Radius (miles)", "type": "integer", "default": 150, "min": 5, "max": 500}],
+  "request": {
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=IncidentTypeCategory%3D%27WF%27&outFields=IncidentName,IncidentSize,PercentContained,POOState,POOCounty,FireCause,IncidentShortDescription,UniqueFireIdentifier,IrwinID,TotalIncidentPersonnel,IncidentManagementOrganization,FireDiscoveryDateTime&geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&distance={param:radius_mi}&units=esriSRUnit_StatuteMile&returnGeometry=true&orderByFields=OBJECTID&f=geojson",
+    "paging": {
+      "type": "offset",
+      "param": "resultOffset",
+      "size_param": "resultRecordCount",
+      "page_size": 500,
+      "list_path": "features",
+      "more_path": "properties.exceededTransferLimit",
+      "max_pages": 4
+    }
+  },
+  "refresh_minutes": 20,
+  "quota": {"per_minute": 10, "per_day": 500, "per_month": 10000},
+  "validity": {"fixed_hours": 3},
+  "require": ["features"],
+  "items": [
+    {
+      "each": "features",
+      "key": {"first_of": [{"path": "properties.UniqueFireIdentifier"}, {"path": "properties.IrwinID"}]},
+      "label": {"path": "properties.IncidentName", "suffix": " fire"},
+      "time": {"path": "properties.FireDiscoveryDateTime", "time": {"in": "unix_ms", "out": "datetime"}},
+      "point": {"lat": {"path": "geometry.coordinates[1]"}, "lon": {"path": "geometry.coordinates[0]"}},
+      "sort": [{"by": {"path": "properties.IncidentSize"}, "number": true, "desc": true}],
+      "fields": [
+        {"label": "Size", "path": "properties.IncidentSize", "round": 0, "suffix": " acres"},
+        {"label": "Contained", "path": "properties.PercentContained", "round": 0, "suffix": "%"},
+        {"label": "From the place", "distance": {"geometry": "geometry", "unit": "mi"}},
+        {"label": "Discovered", "path": "properties.FireDiscoveryDateTime", "time": {"in": "unix_ms", "out": "%Y-%m-%d %H:%M"}},
+        {"label": "County", "path": "properties.POOCounty"},
+        {"label": "State", "path": "properties.POOState"},
+        {"label": "Cause", "path": "properties.FireCause", "case": "lower", "omit_if": ["undetermined"]},
+        {"label": "Location", "path": "properties.IncidentShortDescription", "max_chars": 160},
+        {"label": "Personnel", "path": "properties.TotalIncidentPersonnel"},
+        {"label": "Managed by", "path": "properties.IncidentManagementOrganization"}
+      ]
+    }
+  ]
+}

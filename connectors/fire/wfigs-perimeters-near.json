@@ -1,0 +1,43 @@
+{
+  "format": 2,
+  "id": "wfigs-perimeters-near",
+  "title": "Wildfire perimeters near the place (WFIGS)",
+  "provider": "NIFC WFIGS",
+  "description": "current wildfire perimeters within 150 miles of the place (default), nearest edge first, with distance and direction from the place to the fire edge (US, NIFC WFIGS)",
+  "attribution": "Wildfire perimeters from the National Interagency Fire Center WFIGS (data-nifc.opendata.arcgis.com), public domain",
+  "params": [{"name": "radius_mi", "label": "Radius (miles)", "type": "integer", "default": 150, "min": 5, "max": 500}],
+  "request": {
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query?where=attr_IncidentTypeCategory%3D%27WF%27&outFields=attr_IncidentName,attr_IncidentSize,attr_PercentContained,attr_POOState,attr_POOCounty,attr_UniqueFireIdentifier,attr_IrwinID,attr_IncidentShortDescription,poly_Acres_AutoCalc&geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&distance={param:radius_mi}&units=esriSRUnit_StatuteMile&returnGeometry=true&geometryPrecision=4&maxAllowableOffset=0.0005&orderByFields=OBJECTID&f=geojson",
+    "paging": {
+      "type": "offset",
+      "param": "resultOffset",
+      "size_param": "resultRecordCount",
+      "page_size": 100,
+      "list_path": "features",
+      "more_path": "properties.exceededTransferLimit",
+      "max_pages": 4
+    }
+  },
+  "refresh_minutes": 20,
+  "quota": {"per_minute": 10, "per_day": 500, "per_month": 10000},
+  "validity": {"fixed_hours": 3},
+  "require": ["features"],
+  "items": [
+    {
+      "each": "features",
+      "key": {"first_of": [{"path": "properties.attr_UniqueFireIdentifier"}, {"path": "properties.attr_IrwinID"}, {"path": "id"}]},
+      "label": {"path": "properties.attr_IncidentName", "suffix": " fire perimeter"},
+      "sort": [{"distance": true}],
+      "limit": 25,
+      "fields": [
+        {"label": "Distance to fire edge", "distance": {"geometry": "geometry", "unit": "mi"}},
+        {"label": "Mapped size", "path": "properties.poly_Acres_AutoCalc", "round": 0, "suffix": " acres"},
+        {"label": "Reported size", "path": "properties.attr_IncidentSize", "round": 0, "suffix": " acres"},
+        {"label": "Contained", "path": "properties.attr_PercentContained", "round": 0, "suffix": "%"},
+        {"label": "County", "path": "properties.attr_POOCounty"},
+        {"label": "Location", "path": "properties.attr_IncidentShortDescription", "max_chars": 160}
+      ],
+      "area": "geometry"
+    }
+  ]
+}
