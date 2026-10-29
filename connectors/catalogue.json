@@ -5,7 +5,7 @@
   "maintainer": "Cache project",
   "homepage": "https://github.com/zvx-echo6/cache-packs/tree/main/connectors",
   "base_url": "https://cache.echo6.co/connectors/",
-  "updated": "2026-10-28",
+  "updated": "2026-10-29",
   "connectors": [
     {
       "id": "nws-alerts-point",
@@ -260,7 +260,7 @@
       "default_on": false,
       "path": "traffic/tomtom-flow-point.json",
       "attribution": "Traffic data by TomTom (tomtom.com); use is subject to the TomTom developer terms",
-      "license": "TomTom developer terms (free key, 2,500 requests/day free)",
+      "license": "TomTom developer terms (free key; free tier is 20,000 requests a month, TomTom, checked 2026-10-29)",
       "docs": "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/flow-segment-data"
     },
     {

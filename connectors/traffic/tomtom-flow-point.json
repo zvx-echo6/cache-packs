@@ -8,7 +8,7 @@
   "request": { "url": "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?key={api_key}&point={lat:5},{lon:5}&unit=mph" },
   "api_key": { "alias": "tomtom", "required": true },
   "refresh_minutes": 10,
-  "quota": { "per_minute": 60, "per_day": 2500 },
+  "quota": { "per_minute": 60, "per_day": 650, "per_month": 20000 },
   "validity": { "fixed_hours": 1 },
   "require": ["flowSegmentData.currentSpeed"],
   "items": [
