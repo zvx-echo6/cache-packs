@@ -1,0 +1,66 @@
+{
+ "_note": "Corrections to OpenStreetMapSpeeds for Utah and Idaho, from the 40-trip Apple Maps benchmark (2026-10-28); see recipes/routing-tiles.md",
+ "US.UT": {
+  "rural": {
+   "way": {
+    "trunk": null,
+    "secondary": 73,
+    "service_other": 25
+   }
+  },
+  "suburban": {
+   "way": {
+    "motorway": 112,
+    "service_other": 21,
+    "primary": 63,
+    "residential": 30
+   },
+   "link_turning": {
+    "primary": 60
+   }
+  },
+  "urban": {
+   "way": {
+    "motorway": 112,
+    "residential": 30,
+    "service_other": 20
+   },
+   "link_turning": {
+    "primary": 60
+   }
+  }
+ },
+ "US.ID": {
+  "rural": {
+   "way": {
+    "motorway": 116,
+    "trunk": 83,
+    "secondary": 80,
+    "service_other": 25
+   }
+  },
+  "suburban": {
+   "way": {
+    "primary": 65,
+    "service_other": 21,
+    "trunk": 75,
+    "motorway": 105,
+    "secondary": 56,
+    "residential": 30
+   },
+   "link_turning": {
+    "primary": 60
+   }
+  },
+  "urban": {
+   "way": {
+    "residential": 30,
+    "service_other": 20,
+    "primary": 52
+   },
+   "link_turning": {
+    "primary": 60
+   }
+  }
+ }
+}
