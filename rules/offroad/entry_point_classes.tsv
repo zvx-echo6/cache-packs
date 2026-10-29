@@ -1,0 +1,13 @@
+# OSM highway values whose way end nodes become trailhead (entry) points.
+# Project decision (2026-10-29): the class set found in navi.db trail_entry_points over Idaho (B0, read-only).
+highway
+primary
+secondary
+tertiary
+unclassified
+residential
+service
+track
+path
+footway
+bridleway
