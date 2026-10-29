@@ -16,8 +16,9 @@ TILES=$(wc -l < index.tsv)
 BYTES=$(awk -F'\t' '{s+=$2} END {printf "%.0f", s}' index.tsv)
 GZB=$(awk -F'\t' '{s+=$4} END {printf "%.0f", s}' index.tsv)
 MD5=$(cut -d' ' -f1 "$MD5FILE")
+SPEEDS_SHA=$(sha256sum "$W/default_speeds.json" | cut -c1-64)
 cat > "$W/current.json" <<J
-{"format": 1, "build": "$B", "valhalla": "3.7.0", "source": "Geofabrik north-america-latest.osm.pbf (md5 $MD5), OpenStreetMap contributors, ODbL 1.0", "built_with": "valhalla_build_tiles 3.7.0, build_admins and build_time_zones on, use_default_speeds_config off", "tiles": $TILES, "bytes": $BYTES, "gz_bytes": $GZB, "index": "$B/index.tsv.gz", "index_sha256": "$SHA"}
+{"format": 1, "build": "$B", "valhalla": "3.7.0", "source": "Geofabrik north-america-latest.osm.pbf (md5 $MD5), OpenStreetMap contributors, ODbL 1.0", "built_with": "valhalla_build_tiles 3.7.0, build_admins and build_time_zones on, speed table recipes/routing-default-speeds.json (sha256 $SPEEDS_SHA)", "tiles": $TILES, "bytes": $BYTES, "gz_bytes": $GZB, "index": "$B/index.tsv.gz", "index_sha256": "$SHA"}
 J
 R="docker run --rm --env-file $W/r2.env -v $W:/data rclone/rclone:1.68.2"
 . "$W/r2.env"

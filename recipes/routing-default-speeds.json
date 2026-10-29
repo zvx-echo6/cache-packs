@@ -1,0 +1,199 @@
+[
+ {
+  "rural": {
+   "way": [113, null, 84, 78, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "suburban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "urban": {
+   "way": [null, 45, 45, 41, 30, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  }
+ },
+ {
+  "iso3166-1": "CA",
+  "rural": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "suburban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "urban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  }
+ },
+ {
+  "iso3166-1": "MX",
+  "rural": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "suburban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "urban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  }
+ },
+ {
+  "iso3166-1": "BM",
+  "rural": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "suburban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "urban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  }
+ },
+ {
+  "iso3166-1": "GL",
+  "rural": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "suburban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "urban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  }
+ },
+ {
+  "iso3166-1": "PM",
+  "rural": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "suburban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  },
+  "urban": {
+   "way": [null, null, null, null, null, null, null, null],
+   "link_exiting": [null, null, null, null, null],
+   "link_turning": [null, null, null, null, null],
+   "roundabout": [null, null, null, null, null, null, null, null],
+   "driveway": null,
+   "alley": null,
+   "parking_aisle": null,
+   "drive-through": null
+  }
+ }
+]
