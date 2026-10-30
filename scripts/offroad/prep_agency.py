@@ -72,7 +72,8 @@ def main():
                 if b is None or g is None or g.IsEmpty():
                     cnt[f"{source}_skipped"] += 1
                     continue
-                g = g.Clone()
+                # curve types (CompoundCurve etc.) have no GeoJSON form: linearise them, as prep_mvum.py does
+                g = ogr.ForceToMultiLineString(g.GetLinearGeometry())
                 g.Transform(tr)
                 write(source, b, json.loads(g.ExportToJson()))
             del ds
