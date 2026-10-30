@@ -30,7 +30,7 @@ Counts: **21 connectors**: 17 keyless and 4 that need a key (`idaho511-events`, 
 | `wzdx-idaho` | `wzdx_idaho` | Idaho Transportation Department, WZDx feed, https://511.idaho.gov/developers/doc | none | roads | GeoJSON (WZDx 4.1) | Idaho | validated (Boise: 30 nearest of 638 work zones; closures first then nearest, 2 MB feed). |
 | `idaho511-events` | `roads511` | Idaho 511, https://511.idaho.gov/help/endpoint/event | key (query) | roads | JSON | Idaho | validated: needs key (request checked; 4 sample events: full closure first, the far one dropped). Provider limit: 10 calls per 60 s per key; quota set to 4/min. |
 | `idaho511-winter-roads` | `roads511` (same key) | Idaho 511, https://511.idaho.gov/help/endpoint/winterroads | key (query) | roads | JSON | Idaho | validated: needs key. Format 1, unchanged (the records carry no coordinates, so there is nothing to filter by distance). |
-| `tomtom-flow-point` | `tomtom_traffic` | TomTom, https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/flow-segment-data | key (query) | traffic | JSON | worldwide | validated: needs key. Format 1, unchanged. Free tier: 2,500 non-tile requests a day. |
+| `tomtom-flow-point` | `tomtom_traffic` | TomTom, https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/flow-segment-data | key (query) | traffic | JSON | worldwide | validated: needs key. Format 1, unchanged. Free tier: 20,000 Traffic Flow requests a month, no daily limit (TomTom pricing page, checked 2026-10-29); the quota is 60/min, 650/day (about a month spread evenly) and 20,000 per 30 days. |
 
 ## 2. Not added
 
