@@ -1,0 +1,154 @@
+name: offroad-regions
+
+# Builds the off-road data file of each region (recipes/offroad-region.md), one region per job, and stages the files as
+# assets of a GitHub pre-release. Runs only by hand. It never publishes to R2 and never touches a catalogue.
+# Elevation is not an asset: it comes from Mapterhorn (each region's manifest says which tiles); the extract is used
+# here only to pick the cells the pack covers.
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Pre-release tag the files are staged in
+        default: offroad-2026-10
+      cache_ref:
+        description: Commit of the Cache repo that offroad_pack is built from
+        default: 024274848df6769f1a4f87fe700e303fdcac1adb
+      regions:
+        description: Regions to build, comma-separated (empty = all)
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: offroad-regions
+  cancel-in-progress: false
+
+jobs:
+  tool:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: zvx-echo6/cache
+          ref: ${{ inputs.cache_ref }}
+          path: cache-src
+          sparse-checkout: packages/cache_search
+          persist-credentials: false
+      - name: Build offroad_pack
+        run: |
+          mkdir -p "$RUNNER_TEMP/target" "$RUNNER_TEMP/cargo"
+          docker run --rm -v "$PWD/cache-src/packages/cache_search:/src:ro" -v "$RUNNER_TEMP/cargo:/usr/local/cargo/registry" \
+            -v "$RUNNER_TEMP/target:/t" -e CARGO_TARGET_DIR=/t -w /src/native rust:1.90-slim \
+            cargo build -q --locked --release -j 4 -p offroad_pack
+          mkdir -p bin && cp "$RUNNER_TEMP/target/release/offroad_pack" bin/
+          sha256sum bin/offroad_pack
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: offroad_pack
+          path: bin/offroad_pack
+          retention-days: 7
+
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Create the pre-release if it is missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release }}
+        run: |
+          [[ "$TAG" =~ ^offroad-[0-9a-z.-]+$ ]] || { echo "release tag must start with offroad-" >&2; exit 2; }
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" --title "Off-road region data ($TAG)" \
+              --notes "Off-road data files per region, built by the offroad-regions workflow from recipes/offroad-region.md. Staged only: not published to the data host. Each region has REGION-manifest.json with the sizes and sha256s of every file; files over 2 GiB are split into parts (concatenate them in manifest order). Elevation is not included: it is Mapterhorn's z12 tiles over the region's bbox (see the manifest's elevation entry)."
+          fi
+
+  build:
+    needs: [tool, release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - region: utah
+            bbox: "-114.8,36.5,-108.3,42.5"
+            extracts: "us/utah us/idaho us/wyoming us/colorado us/arizona us/nevada us/new-mexico"
+            land_access: us
+            smoke: "40.700,-110.885 40.735,-110.850"
+          - region: wyoming
+            bbox: "-111.8,40.5,-103.3,45.5"
+            extracts: "us/wyoming us/idaho us/montana us/utah us/colorado us/nebraska us/south-dakota"
+            land_access: us
+            smoke: "42.690,-109.270 42.725,-109.235"
+          - region: nevada
+            bbox: "-120.7,34.5,-113.3,42.5"
+            extracts: "us/nevada us/california us/oregon us/idaho us/utah us/arizona"
+            land_access: us
+            smoke: "40.610,-115.420 40.640,-115.380"
+          - region: montana
+            bbox: "-116.8,43.9,-103.3,49.5"
+            extracts: "us/montana us/idaho us/wyoming us/north-dakota us/south-dakota canada/british-columbia canada/alberta canada/saskatchewan"
+            land_access: us
+            smoke: "47.620,-113.100 47.650,-113.060"
+          - region: oregon
+            bbox: "-125.3,41.5,-115.8,46.8"
+            extracts: "us/oregon us/washington us/idaho us/california us/nevada"
+            land_access: us
+            smoke: "44.100,-121.800 44.130,-121.760"
+          - region: washington
+            bbox: "-125.4,45.0,-116.2,49.5"
+            extracts: "us/washington us/oregon us/idaho canada/british-columbia"
+            land_access: us
+            smoke: "47.500,-120.900 47.530,-120.860"
+          - region: alberta
+            bbox: "-120.8,48.5,-109.2,60.5"
+            extracts: "canada/alberta canada/british-columbia canada/saskatchewan canada/northwest-territories us/montana us/idaho us/washington"
+            land_access: none
+            smoke: "50.800,-115.200 50.830,-115.160"
+    steps:
+      - name: Skip regions not asked for
+        id: want
+        env:
+          WANT: ${{ inputs.regions }}
+          REGION: ${{ matrix.region }}
+        run: |
+          if [ -z "$WANT" ] || [[ ",${WANT// /}," == *",$REGION,"* ]]; then echo "go=1" >> "$GITHUB_OUTPUT"; else echo "go=0" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        if: steps.want.outputs.go == '1'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: steps.want.outputs.go == '1'
+        with:
+          name: offroad_pack
+          path: ${{ runner.temp }}/bin
+      - name: Build, package and stage
+        if: steps.want.outputs.go == '1'
+        env:
+          REGION: ${{ matrix.region }}
+          BBOX: ${{ matrix.bbox }}
+          EXTRACTS: ${{ matrix.extracts }}
+          LAND_ACCESS: ${{ matrix.land_access }}
+          RELEASE: ${{ inputs.release }}
+          GH_TOKEN: ${{ github.token }}
+          OFFROAD_PACK: ${{ runner.temp }}/bin/offroad_pack
+        run: scripts/offroad/ci-region.sh
+      - name: Smoke route (cache_offroad readers)
+        if: steps.want.outputs.go == '1'
+        env:
+          REGION: ${{ matrix.region }}
+          BBOX: ${{ matrix.bbox }}
+          LAND_ACCESS: ${{ matrix.land_access }}
+          SMOKE: ${{ matrix.smoke }}
+          RELEASE: ${{ inputs.release }}
+          GH_TOKEN: ${{ github.token }}
+          OFFROAD_PACK: ${{ runner.temp }}/bin/offroad_pack
+        run: |
+          W="$(cat "$RUNNER_TEMP/workdir")"
+          rc=0; CPUS=4 scripts/build-offroad-region.sh "$REGION" "$W" smoke || rc=$?
+          cp "$W/smoke.txt" "$RUNNER_TEMP/$REGION-smoke.txt"
+          gh release upload "$RELEASE" -R "$GITHUB_REPOSITORY" --clobber "$RUNNER_TEMP/$REGION-smoke.txt"
+          { echo "### $REGION smoke route"; echo '```'; head -20 "$W/smoke.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc

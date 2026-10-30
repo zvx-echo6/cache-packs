@@ -5,10 +5,14 @@
 #
 # Runs on a Docker host (navi-build CT 138); every tool runs in a pinned container, nothing is installed on the host.
 # Env: BBOX=w,s,e,n (required); OSM_PBF (a Geofabrik .osm.pbf that covers BBOX, read only); CACHE_SRC (a checkout of
-# the Cache repo, for offroad_pack); CPUS (default 8); AGENCY_LINES (1 = burn USFS and BLM lines into the trails
-# layer, the default; 0 = OSM only).
+# the Cache repo, for offroad_pack; or OFFROAD_PACK, a prebuilt offroad_pack binary from the rust image below); CPUS
+# (default 8); AGENCY_LINES (1 = burn USFS and BLM lines into the trails layer, the default; 0 = OSM only);
+# LAND_ACCESS (us = PAD-US, USFS and BLM, the default; none = outside the US: those sources are not fetched, barriers,
+# wilderness and MVUM stay empty, agency lines are off, and the pack's meta says land access is unknown).
+# OSM_PBF.sources, if present, lists the extracts OSM_PBF was merged from (recorded in in/osm/source.txt).
 # Steps, in order (default: all): fetch-worldcover fetch-osm fetch-padus fetch-usfs fetch-blm fetch-elevation
 #   prep-osm prep-mvum prep-agency rasterise pack attribution
+# Optional step: smoke (SMOKE="lat,lon lat,lon": one foot route on the pack with the existing cache_offroad readers)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$HERE")"
@@ -17,8 +21,15 @@ REGION="${1:?region slug}"; WORK="${2:?work dir}"; shift 2
 [[ "${BBOX:?BBOX=w,s,e,n}" =~ ^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$ ]] || { echo "bad bbox" >&2; exit 2; }
 IFS=, read -r BB_W BB_S BB_E BB_N <<<"$BBOX"
 STEPS=("$@")
-[ ${#STEPS[@]} -gt 0 ] || STEPS=(fetch-worldcover fetch-osm fetch-padus fetch-usfs fetch-blm fetch-elevation prep-osm prep-mvum prep-agency rasterise pack attribution)
-CPUS="${CPUS:-8}"; AGENCY_LINES="${AGENCY_LINES:-1}"
+CPUS="${CPUS:-8}"; AGENCY_LINES="${AGENCY_LINES:-1}"; LAND_ACCESS="${LAND_ACCESS:-us}"
+case "$LAND_ACCESS" in us) ;; none) AGENCY_LINES=0 ;; *) echo "LAND_ACCESS is us or none" >&2; exit 2 ;; esac
+if [ ${#STEPS[@]} -eq 0 ]; then
+  if [ "$LAND_ACCESS" = us ]; then
+    STEPS=(fetch-worldcover fetch-osm fetch-padus fetch-usfs fetch-blm fetch-elevation prep-osm prep-mvum prep-agency rasterise pack attribution)
+  else
+    STEPS=(fetch-worldcover fetch-osm fetch-elevation prep-osm prep-mvum rasterise pack attribution)
+  fi
+fi
 
 # Pinned tool images
 IMG_GDAL=ghcr.io/osgeo/gdal:ubuntu-small-3.9.3
@@ -61,6 +72,7 @@ fetch_osm() {
     osmium extract --overwrite -s complete_ways -b "$BBOX" "/src/$(basename "$OSM_PBF")" -o /w/in/osm/region.osm.pbf
   { echo "source $(basename "$OSM_PBF") $(stat -c '%s %y' "$OSM_PBF")"
     [ -s "$OSM_PBF.md5" ] && echo "md5 $(cut -d' ' -f1 "$OSM_PBF.md5")"
+    [ -s "$OSM_PBF.sources" ] && cat "$OSM_PBF.sources"
     docker run --rm -v "$WORK:/w" "$IMG_OSMIUM" osmium fileinfo -g header.option.osmosis_replication_timestamp /w/in/osm/region.osm.pbf | sed 's/^/replication_timestamp /'
   } > "$WORK/in/osm/source.txt" || true
   log "osm: $(du -h "$WORK/in/osm/region.osm.pbf" | cut -f1)"
@@ -110,6 +122,10 @@ prep_osm() {
 }
 
 prep_mvum() {
+  if [ "$LAND_ACCESS" = none ]; then
+    : > "$WORK/work/mvum.geojsonl"; echo "none (LAND_ACCESS=none)" > "$WORK/work/mvum.counts"
+    log "prep-mvum: $(cat "$WORK/work/mvum.counts")"; return
+  fi
   run "$IMG_GDAL" python3 -I /r/scripts/offroad/prep_mvum.py --usfs in/usfs --bbox="$BBOX" --out work/mvum.geojsonl
   log "prep-mvum: $(cat "$WORK/work/mvum.counts")"
 }
@@ -151,25 +167,70 @@ rasterise() {
   # barriers and wilderness: the same pixel size, anchored at (-125, 50) like navi's PAD-US rasters
   local te_p; te_p=$(grid_te "$BB_W" "$BB_S" "$BB_E" "$BB_N" -125 50)
   rm -f "$r/barriers.tif" "$r/wilderness.tif"
-  # shellcheck disable=SC2086
-  run "$IMG_GDAL" gdal_rasterize -q -burn 255 -where "Pub_Access = 'XA'" -te $te_p -tr 0.0003 0.0003 "${co[@]}" /w/in/padus.geojsonl /w/work/r/barriers.tif
-  # shellcheck disable=SC2086
-  run "$IMG_GDAL" gdal_rasterize -q -burn 255 -where "Des_Tp = 'WA'" -te $te_p -tr 0.0003 0.0003 "${co[@]}" /w/in/padus.geojsonl /w/work/r/wilderness.tif
+  if [ "$LAND_ACCESS" = none ]; then
+    # no PAD-US outside the US: both layers are all zero on the same grid
+    local fc='{"type":"FeatureCollection","features":[]}'
+    echo "$fc" > "$r/empty.geojson"
+    # shellcheck disable=SC2086
+    run "$IMG_GDAL" gdal_rasterize -q -burn 255 -te $te_p -tr 0.0003 0.0003 "${co[@]}" /w/work/r/empty.geojson /w/work/r/barriers.tif
+    # shellcheck disable=SC2086
+    run "$IMG_GDAL" gdal_rasterize -q -burn 255 -te $te_p -tr 0.0003 0.0003 "${co[@]}" /w/work/r/empty.geojson /w/work/r/wilderness.tif
+    rm -f "$r/empty.geojson"
+  else
+    # shellcheck disable=SC2086
+    run "$IMG_GDAL" gdal_rasterize -q -burn 255 -where "Pub_Access = 'XA'" -te $te_p -tr 0.0003 0.0003 "${co[@]}" /w/in/padus.geojsonl /w/work/r/barriers.tif
+    # shellcheck disable=SC2086
+    run "$IMG_GDAL" gdal_rasterize -q -burn 255 -where "Des_Tp = 'WA'" -te $te_p -tr 0.0003 0.0003 "${co[@]}" /w/in/padus.geojsonl /w/work/r/wilderness.tif
+  fi
   log "rasterise: $(du -ch "$r"/*.tif | tail -1 | cut -f1)"
 }
 
-pack() {
-  : "${CACHE_SRC:?CACHE_SRC}"
+# offroad_pack_bin: the folder that holds offroad_pack (mounted at /t/release); OFFROAD_PACK, or built from CACHE_SRC
+offroad_pack_bin() {
+  if [ -n "${OFFROAD_PACK:-}" ]; then
+    [ -x "$OFFROAD_PACK" ] || { echo "OFFROAD_PACK is not an executable" >&2; exit 2; }
+    [ "$(basename "$OFFROAD_PACK")" = offroad_pack ] || { echo "OFFROAD_PACK must be named offroad_pack" >&2; exit 2; }
+    cd "$(dirname "$OFFROAD_PACK")" && pwd; return
+  fi
+  : "${CACHE_SRC:?CACHE_SRC or OFFROAD_PACK}"
   mkdir -p "$WORK/cargo" "$WORK/target"
   docker run --rm --cpus "$CPUS" -v "$CACHE_SRC/packages/cache_search:/src:ro" -v "$WORK/cargo:/usr/local/cargo/registry" \
-    -v "$WORK/target:/t" -e CARGO_TARGET_DIR=/t -w /src/native "$IMG_RUST" cargo build -q --locked --release -j "$CPUS" -p offroad_pack
+    -v "$WORK/target:/t" -e CARGO_TARGET_DIR=/t -w /src/native "$IMG_RUST" cargo build -q --locked --release -j "$CPUS" -p offroad_pack >&2
+  echo "$WORK/target/release"
+}
+
+pack() {
+  local bin; bin="$(offroad_pack_bin)"
   local s="$BB_S,$BB_N,$BB_W,$BB_E"
-  docker run --rm --cpus "$CPUS" -v "$WORK:/w" -v "$WORK/target:/t:ro" -v "$ROOT:/r:ro" -w /w "$IMG_RUST" \
+  docker run --rm --cpus "$CPUS" -v "$WORK:/w" -v "$bin:/t/release:ro" -v "$ROOT:/r:ro" -w /w "$IMG_RUST" \
     /t/release/offroad_pack build-sources --out /w/out/offroad.sqlite --bbox "$s" --threads "$CPUS" \
       --coverage-pmtiles /w/out/elevation.pmtiles --class-dir /w/in/worldcover --class-friction /r/rules/offroad/class_friction.tsv \
       --trails /w/work/r/trails.tif --barriers /w/work/r/barriers.tif --wilderness /w/work/r/wilderness.tif \
       --parking /w/work/parking.tsv --entry-points /w/work/entry_points.tsv --mvum /w/work/mvum.geojsonl
+  if [ "$LAND_ACCESS" = none ]; then
+    # the spec's coverage keys (cov_land_access, cov_mvum): no land-access or MVUM data anywhere in this pack
+    run "$IMG_PY" python3 -I -c 'import sqlite3,sys
+c=sqlite3.connect(sys.argv[1])
+c.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)",[("cov_land_access","none"),("cov_mvum","none"),
+ ("land_rules","unknown: no land-ownership, wilderness or motor-vehicle data was used (land_rules_unknown)")])
+c.commit()' /w/out/offroad.sqlite
+  fi
   log "pack: $(du -h "$WORK/out/offroad.sqlite" | cut -f1)"
+}
+
+# smoke: one foot route between the two SMOKE points with offroad_pack route (SqlitePack + PmtilesElevation), and the
+# pack summary; output in WORK/smoke.txt
+smoke() {
+  local a b; read -r a b <<<"${SMOKE:?SMOKE=\"lat,lon lat,lon\"}"
+  local bin; bin="$(offroad_pack_bin)"
+  local o=(--rm --cpus "$CPUS" -v "$WORK:/w:ro" -v "$bin:/t/release:ro" -w /w "$IMG_RUST" /t/release/offroad_pack)
+  { echo "# route --mode foot --start $a --end $b"
+    docker run "${o[@]}" route --pack /w/out/offroad.sqlite --elevation /w/out/elevation.pmtiles --start "$a" --end "$b" --mode foot 2>&1
+    echo "# inspect"
+    docker run "${o[@]}" inspect --pack /w/out/offroad.sqlite 2>&1
+  } > "$WORK/smoke.txt"
+  log "smoke: $(sed -n 2p "$WORK/smoke.txt")"
+  grep -q '^ok ' "$WORK/smoke.txt"
 }
 
 attribution() {
@@ -183,7 +244,7 @@ for s in "${STEPS[@]}"; do
   case "$s" in
     fetch-worldcover) fetch_worldcover ;; fetch-osm) fetch_osm ;; fetch-padus) fetch_padus ;; fetch-usfs) fetch_usfs ;;
     fetch-blm) fetch_blm ;; fetch-elevation) fetch_elevation ;; prep-osm) prep_osm ;; prep-mvum) prep_mvum ;;
-    prep-agency) prep_agency ;; rasterise) rasterise ;; pack) pack ;; attribution) attribution ;;
+    prep-agency) prep_agency ;; rasterise) rasterise ;; pack) pack ;; attribution) attribution ;; smoke) smoke ;;
     *) echo "unknown step $s" >&2; exit 2 ;;
   esac
   log "step $s done in $(( $(date +%s) - t0 ))s"

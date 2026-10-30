@@ -48,6 +48,22 @@ BLM terms (from the dataset record): cite the BLM as the source; describe modifi
 
 Outputs in `WORK/out/`. Publishing is a separate step and needs the owner's go.
 
+Options:
+- `OFFROAD_PACK`: a prebuilt `offroad_pack` (built in the same rust image) instead of building it from `CACHE_SRC`.
+- `LAND_ACCESS=none`, for regions outside the US: PAD-US, USFS and BLM do not cover them, so they are not fetched; `barriers`, `wilderness` and MVUM are empty, agency lines are off, `ATTRIBUTION.json` lists only the sources used, and the pack's meta has `cov_land_access = none`, `cov_mvum = none` and a `land_rules` note (land access unknown; the router's `land_rules_unknown` case).
+- `OSM_PBF.sources`: when `OSM_PBF` was merged from several extracts, one line per extract (path, md5, size, replication timestamp), copied into `in/osm/source.txt` and so into `ATTRIBUTION.json`.
+- Step `smoke` (not in the default list), with `SMOKE="lat,lon lat,lon"`: one foot route with `offroad_pack route` (the `SqlitePack` and `PmtilesElevation` readers), plus `inspect`; output in `WORK/smoke.txt`.
+
+## GitHub Actions (`.github/workflows/offroad-regions.yml`)
+
+Manual only. One job per region on a standard `ubuntu-24.04` runner (4 CPUs, 16 GB), at most four at a time; `offroad_pack` is built once from a pinned Cache commit. Each job (`scripts/offroad/ci-region.sh`) frees disk, works on the larger of `/` and `/mnt`, downloads the Geofabrik extracts that cover the region's bbox (md5-checked) and merges them with `osmium merge`, runs the recipe, deletes the inputs, and stages the region's files as assets of a pre-release (`offroad-YYYY-MM`):
+
+- `REGION-offroad.sqlite`, or `REGION-offroad.sqlite.partNNN` when it is over 2 GiB (concatenate in order);
+- `REGION-manifest.json` (`scripts/offroad/release_assets.py`): bytes and sha256 of every file and part, plus `elevation`: the Mapterhorn `planet.pmtiles` version, bbox, zoom 12, tile count and extract sha256;
+- `REGION-ATTRIBUTION.json`, `REGION-steps.log`, `REGION-smoke.txt`.
+
+`elevation.pmtiles` is not an asset: elevation comes from Mapterhorn, and the extract is used on the runner only to pick the pack's cells and for the smoke route. Regions are a 50 km (about 0.5 degree) pad around the state or province. Alberta is built with `LAND_ACCESS=none`.
+
 ## Idaho reference build
 
 See the off-road section of the README for the measured sizes and timings.
