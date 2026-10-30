@@ -49,7 +49,7 @@ Each entry of `connectors`:
 
 Relative paths never contain `..` and never start with `/`; an app must reject a path that leaves `base_url`.
 
-## Definition format (format 2)
+## Definition format (format 2, and 3)
 
 The format is read by the `cache_live` crate (`packages/cache_search/native/cache_live/src/def.rs`), described in full, with an example per feature, in `packages/cache_search/DESIGN.md` ("Live sources"), and available as a JSON Schema (`packages/cache_search/schema/live-source.schema.json`) that editors can check a definition against. Format 2 is a superset of format 1: older files still load. In short:
 
@@ -72,13 +72,15 @@ The format is read by the `cache_live` crate (`packages/cache_search/native/cach
                "point": {...}, "area": "path to GeoJSON" } ] }
 ```
 
+Format 3 adds two things (a file that uses either says `"format": 3`; a Cache that reads only formats 1 and 2 leaves that connector out): `"cache_hours": n` on a request or step (a document is fetched once and reused for n hours, at most 168; GET only, not for keyed sources; an expired document's 403 is remembered too), and `"cap_area": {"path": ..., "match_place": true, "code": "SAME", "place_codes": [...]}` on an item (the OASIS CAP `<area>` polygons and circles become the item's area, and the item is kept only when it reaches the place: its point, a region's whole area, or one of its county codes). See DESIGN.md, "Format 3".
+
 Placeholders in the URL, headers and body: `{lat}` `{lon}` (`{lat:2}` for another count), `{latlon}`, `{name}`, `{place_key}`, `{api_key}`, `{param:name}`, `{bbox:50km}` (west,south,east,north around the place), `{state}` `{county}` `{country}` (from the place), `{now-24h:unix}`, and values from an earlier step. Unknown keys in a definition are errors.
 
 Write and test a definition with the `cs` tool: `cs live-check <def.json>` validates it and names every problem by field; `cs live-preview <def.json> --place 43.615,-116.2023 [--param k=v] [--key ...]` fetches once and prints the raw response tree, the paths in it and the mapped items, so you can see what to map.
 
 Rules for this catalogue:
 
-1. Official, documented APIs only. No scraping: no HTML pages, no undocumented or internal endpoints, nothing that needs a browser-shaped User-Agent to get past a firewall. Every connector has a `docs` link in the catalogue. One exception, accepted by the project owner on 2026-10-26: the avalanche.org forecast map layer (public, undocumented, used with the project User-Agent).
+1. Official, documented APIs only. No scraping: no HTML pages, no undocumented or internal endpoints, nothing that needs a browser-shaped User-Agent to get past a firewall. Every connector has a `docs` link in the catalogue. Two exceptions, accepted by the project owner: the avalanche.org forecast map layer (2026-10-26) and the FEMA IPAWS-OPEN public EAS feed (2026-10-29; FEMA's documented feed needs a Developer registration that is open to government organisations only). Both are public and undocumented and are used with the project User-Agent.
 2. Never put a key in a definition. A keyed provider uses `api_key` with an alias; the user supplies the value and the app keeps it in secure storage.
 3. Never put a real person's name, callsign or e-mail in a definition, header or attribution. Where a provider asks for a contact in the User-Agent (NWS), use the project: `Cache (https://github.com/zvx-echo6/cache-packs)`.
 4. Quotas follow the provider's published limits (or a polite cap where the provider publishes none, and the connector says which in INVENTORY.md).
