@@ -31,7 +31,7 @@ t0=$(date +%s)
 : > "$O/merged.osm.pbf.sources"
 files=()
 for e in $EXTRACTS; do
-  [[ "$e" =~ ^[a-z]+/[a-z-]+$ ]] || { echo "bad extract $e" >&2; exit 2; }
+  [[ "$e" =~ ^[a-z-]+(/[a-z-]+)?$ ]] || { echo "bad extract $e" >&2; exit 2; }
   f="$(basename "$e")-latest.osm.pbf"
   curl -fL --retry 5 --retry-delay 10 --retry-all-errors -sS -o "$O/$f" "$GEOFABRIK/$e-latest.osm.pbf"
   curl -fL --retry 5 --retry-delay 10 --retry-all-errors -sS -o "$O/$f.md5" "$GEOFABRIK/$e-latest.osm.pbf.md5"
@@ -52,27 +52,7 @@ sudo rm -rf "$O" "$W/in/osm" "$W/in/worldcover" "$W/in/usfs" "$W/work" "$W/cargo
 sudo chown -R "$(id -u):$(id -g)" "$W"
 
 # What elevation the pack expects: Mapterhorn's z12 tiles over BBOX (not republished here).
-python3 -I - "$W/in/elevation/download_urls.json" "$W/out/elevation.pmtiles" "$BBOX" > "$W/elevation.json" <<'EOF'
-import hashlib, json, os, struct, sys
-urls, pm, bbox = sys.argv[1:4]
-planet = next((i for i in json.load(open(urls)).get("items", []) if i.get("name") == "planet.pmtiles"), None)
-with open(pm, "rb") as fh:
-    head = fh.read(127)
-    fh.seek(0)
-    h = hashlib.sha256()
-    while b := fh.read(8 << 20):
-        h.update(b)
-assert head[:7] == b"PMTiles" and head[7] == 3, "not a PMTiles v3 file"
-w, s, e, n = map(float, bbox.split(","))
-print(json.dumps({
-    "source": "Mapterhorn planet.pmtiles (z12, 512 px lossless Terrarium WebP); not included in this release",
-    "planet": planet, "bbox": [w, s, e, n], "minzoom": 12, "maxzoom": 12,
-    "tiles": struct.unpack_from("<Q", head, 72)[0],
-    "extract_bytes": os.path.getsize(pm), "extract_sha256": h.hexdigest(),
-    "how": f"pmtiles extract --bbox={bbox} --minzoom=12 --maxzoom=12 https://download.mapterhorn.com/planet.pmtiles elevation.pmtiles",
-    "attribution": "© Mapterhorn (https://mapterhorn.com/attribution)",
-}, indent=1))
-EOF
+python3 -I "$HERE/elevation_json.py" "$W/in/elevation/download_urls.json" "$W/out/elevation.pmtiles" "$BBOX" > "$W/elevation.json"
 
 # Release assets: REGION-offroad.sqlite (or parts), REGION-ATTRIBUTION.json, REGION-manifest.json, REGION-steps.log.
 python3 -I "$HERE/release_assets.py" "$REGION" "$W/out" "$S" --skip elevation.pmtiles --extra "elevation=$W/elevation.json"

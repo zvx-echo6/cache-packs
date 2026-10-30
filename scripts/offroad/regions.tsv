@@ -1,0 +1,18 @@
+# Off-road regions: id, display name, country (ISO 3166-1 alpha-2). Read by publish_offroad.py for offroad/current.json.
+id	name	country
+idaho	Idaho	US
+utah	Utah	US
+wyoming	Wyoming	US
+nevada	Nevada	US
+montana	Montana	US
+oregon	Oregon	US
+washington	Washington	US
+alberta	Alberta	CA
+california	California	US
+arizona	Arizona	US
+colorado	Colorado	US
+new-mexico	New Mexico	US
+nebraska	Nebraska	US
+south-dakota	South Dakota	US
+north-dakota	North Dakota	US
+british-columbia	British Columbia	CA

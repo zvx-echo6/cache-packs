@@ -116,6 +116,46 @@ jobs:
             extracts: "canada/alberta canada/british-columbia canada/saskatchewan canada/northwest-territories us/montana us/idaho us/washington"
             land_access: none
             smoke: "50.800,-115.200 50.830,-115.160"
+          - region: california
+            bbox: "-125.2,32.0,-113.4,42.5"
+            extracts: "us/california us/oregon us/nevada us/arizona mexico"
+            land_access: us
+            smoke: "37.870,-119.400 37.900,-119.360"
+          - region: arizona
+            bbox: "-115.5,30.8,-108.3,37.5"
+            extracts: "us/arizona us/california us/nevada us/utah us/new-mexico us/colorado mexico"
+            land_access: us
+            smoke: "35.330,-111.700 35.360,-111.660"
+          - region: colorado
+            bbox: "-109.8,36.5,-101.3,41.5"
+            extracts: "us/colorado us/utah us/wyoming us/nebraska us/kansas us/oklahoma us/new-mexico us/arizona"
+            land_access: us
+            smoke: "40.070,-105.620 40.100,-105.580"
+          - region: new-mexico
+            bbox: "-109.8,30.8,-102.3,37.5"
+            extracts: "us/new-mexico us/arizona us/colorado us/oklahoma us/texas us/utah mexico"
+            land_access: us
+            smoke: "35.850,-105.650 35.880,-105.610"
+          - region: nebraska
+            bbox: "-104.8,39.5,-94.6,43.5"
+            extracts: "us/nebraska us/wyoming us/colorado us/kansas us/missouri us/iowa us/south-dakota"
+            land_access: us
+            smoke: "42.700,-103.250 42.730,-103.210"
+          - region: south-dakota
+            bbox: "-104.8,42.0,-95.7,46.4"
+            extracts: "us/south-dakota us/north-dakota us/minnesota us/iowa us/nebraska us/wyoming us/montana"
+            land_access: us
+            smoke: "43.850,-103.550 43.880,-103.510"
+          - region: north-dakota
+            bbox: "-104.8,45.4,-95.8,49.5"
+            extracts: "us/north-dakota us/south-dakota us/minnesota us/montana canada/saskatchewan canada/manitoba"
+            land_access: us
+            smoke: "46.950,-103.500 46.980,-103.460"
+          - region: british-columbia
+            bbox: "-139.8,47.8,-113.3,60.5"
+            extracts: "canada/british-columbia canada/alberta canada/yukon canada/northwest-territories us/alaska us/washington us/idaho us/montana"
+            land_access: none
+            smoke: "50.100,-122.950 50.130,-122.910"
     steps:
       - name: Skip regions not asked for
         id: want
