@@ -4,7 +4,12 @@ name: offroad-regions
 # assets of a GitHub pre-release. Runs only by hand. It never publishes to R2 and never touches a catalogue.
 # Elevation is not an asset: it comes from Mapterhorn (each region's manifest says which tiles); the extract is used
 # here only to pick the cells the pack covers.
+# The push trigger only registers the workflow from this branch (it is not on the default branch); every job is skipped
+# unless the run was started by hand.
 on:
+  push:
+    branches: [offroad-data]
+    paths: [.github/workflows/offroad-regions.yml]
   workflow_dispatch:
     inputs:
       release:
@@ -26,6 +31,7 @@ concurrency:
 
 jobs:
   tool:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -51,6 +57,7 @@ jobs:
           retention-days: 7
 
   release:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
