@@ -2,7 +2,7 @@
 
 The worldwide region catalogue: a browsable, searchable list of geographic regions at many overlapping scales (countries, states and provinces, counties and districts, cities and towns, metro areas, and informal regions such as "Southern Idaho" or "Pacific Northwest"). Cache shows it as a tree, and downloads a region's layers for its polygon. Overlap is fine; the app de-duplicates overlapping downloads.
 
-Workflow: `.github/workflows/regions.yml` (by hand or monthly). Code: `regions/build_regions.py`, `regions/publish_regions.sh`. Hand-edited data: `regions/informal.yaml`, `regions/aliases.yaml`.
+Workflow: `.github/workflows/regions.yml` (by hand or monthly). Code: `regions/build_regions.py`, `regions/publish_regions.sh`, `regions/region_sizes.py`, `regions/publish_sizes.sh`. Hand-edited data: `regions/informal.yaml`, `regions/aliases.yaml`.
 
 ## Sources
 
@@ -46,8 +46,27 @@ The exact datasets and licences present in a release are counted into `manifest.
 
 Record fields: `id`, `name`, `local_name`, `kind`, `class`, `country`, `region_code`, `parents` (more than one is allowed), `bbox` (west, south, east, north), `area_km2` (spherical area of the full-resolution polygon), `population` with `population_source`, `admin_level`, `wikidata`, `gers_id`, `polygon`, `names` (all languages, for countries, dependencies and regions), `alt` (search names). Informal records add `members`, `description`, `source`; metros add `counties` and `census_geoid`.
 
+## Download sizes (`sizes`)
+
+Records of the `us`, `ca` and `mx` shards carry `sizes`: what the app would download for the region, part by part, so the phone does not have to work it out (a state never finished). `regions/region_sizes.py` computes it from the project's own published files and follows the app's arithmetic:
+
+```
+"sizes": {"routing": 107400000, "places": 5200000,
+          "map": {"basemap": [420300000, 15], "elevation": [288500000, 11]},
+          "offroad": {"packs": {"idaho": 975400000}, "terrain": 755100000},
+          "routing_build": "na-2026-10-29-speeds2", "built": "2026-10-30T19:11:51Z"}
+```
+
+- `routing`, `places`: the gzip bytes of the routing (places) tiles, levels 0 to 2, that the region's polygon touches, from the index in `routing/current.json` (`places/current.json`). `places` is left out while places are not published.
+- `map`: per map layer (`pmtiles` layers of `https://cache.echo6.co/catalogue.json` that may be kept offline, plus `elevation`, which hillshade and contours download as), `[bytes, zoom]` for the most detail that fits one download. The area is the region's bounding box (a box across the antimeridian is cut to its larger side); the tiles are every zoom from the layer's lowest up to the chosen one; the bytes are the lengths in the PMTiles directory (a run-length entry counts once per tile it covers, a tile that is not in the directory counts 0). The chosen zoom is the layer's top zoom, or the highest of the five below it, whose bytes are at most 800 MiB and within the layer's own `max_bytes_per_download` and `max_tiles_per_download`. A layer for which none fits, or whose box has more than 6,000,000 tiles (the app then gives up on it), is left out. The sums are exact; no tile is sampled or aggregated.
+- `offroad`: the packs of `offroad/current.json` that cover the region (the smallest pack whose box holds it, else every pack whose box meets it) with each pack's `offroad.sqlite` bytes, and `terrain`: the Mapterhorn z12 elevation bytes over the region's box cut to each pack's box, added up. Left out when no pack covers the region.
+- A part that cannot be worked out (a polygon that cannot be read, a box the layer engine rejects) is left out of the record, never written as null or 0. Nothing else in a record changes.
+- `routing_build` is the routing build the numbers belong to; `built` is when they were computed. Sizes go stale when a new routing, places, off-road or map build is published; run the `sizes` mode again then.
+
+The shard bytes and checksums in `manifest.json` and `index.json` describe the shards as the build wrote them, before sizes were added; the `sizes` mode does not rewrite those two files.
+
 Population comes from Overture where it has one and from the Census (US counties, states, metros) otherwise; informal regions sum their members and omit the figure when a member has none (`population_partial` then gives the known part).
 
 ## Running
 
-`mode` input: `explore` (prints Overture schema and counts, no output), `build` (builds on the runner, keeps the json files and an id listing as an artifact), `publish` (build and upload to R2 with the existing secrets). `countries` limits a test run to some ISO codes. A publish run replaces everything under `regions/` (polygons are synced with delete).
+`mode` input: `explore` (prints Overture schema and counts, no output), `build` (builds on the runner, keeps the json files and an id listing as an artifact), `publish` (build and upload to R2 with the existing secrets), `sizes` (downloads the published `shards` from R2, adds `sizes`, keeps them as an artifact and uploads only those shard files with `regions/publish_sizes.sh`; polygons, `index.json`, `manifest.json`, search files and everything else are not touched and nothing is deleted). `build` and `publish` also run `region_sizes.py` on the `us`, `ca` and `mx` shards right after the build, so monthly builds include sizes. `countries` limits a test run to some ISO codes; `shards` (default `us,ca,mx`) picks the shards that get sizes. A publish run replaces everything under `regions/` (polygons are synced with delete).

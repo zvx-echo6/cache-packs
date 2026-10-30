@@ -1,12 +1,13 @@
 name: regions
 
 # Builds the worldwide region catalogue (Overture divisions + US Census metro areas) and publishes it to R2 under regions/.
+# Build and publish also add download sizes to the us, ca and mx shards; the sizes mode redoes only those sizes on the published shards.
 # Runs only by hand or on schedule, never on pull requests.
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "explore (print Overture facts, no output) | build (build files) | publish (build and upload to R2)"
+        description: "explore (print Overture facts, no output) | build (build files) | publish (build and upload to R2) | sizes (re-size the published shards and upload only those)"
         default: explore
       release:
         description: Overture release (blank = latest from the STAC catalogue)
@@ -14,6 +15,9 @@ on:
       countries:
         description: Test filter, comma separated ISO codes (blank = whole world)
         default: ""
+      shards:
+        description: Shards that get download sizes, comma separated
+        default: "us,ca,mx"
   schedule:
     - cron: "41 4 20 * *"
 
@@ -40,6 +44,7 @@ jobs:
           "$RUNNER_TEMP/venv/bin/pip" install -q duckdb==1.1.3 shapely==2.0.6 pyshp==2.3.1 PyYAML==6.0.2
       - name: Resolve Overture release
         id: rel
+        if: ${{ (inputs.mode || 'publish') != 'sizes' }}
         run: |
           REL="${{ inputs.release }}"
           if [ -z "$REL" ]; then REL="$(curl -fsS https://stac.overturemaps.org/catalog.json | python3 -c 'import json,sys;print(json.load(sys.stdin)["latest"])')"; fi
@@ -50,7 +55,7 @@ jobs:
         run: |
           "$RUNNER_TEMP/venv/bin/python" -I regions/explore.py "${{ steps.rel.outputs.release }}"
       - name: Build
-        if: ${{ (inputs.mode || 'publish') != 'explore' }}
+        if: ${{ (inputs.mode || 'publish') == 'build' || (inputs.mode || 'publish') == 'publish' }}
         env:
           COUNTRIES: ${{ inputs.countries || '' }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
@@ -60,8 +65,16 @@ jobs:
             --out "$RUNNER_TEMP/out" --work "$RUNNER_TEMP/work" --countries "$COUNTRIES" --public-url "$R2_PUBLIC_URL"
           du -sh "$RUNNER_TEMP/out/regions" "$RUNNER_TEMP/out/regions/polygons"; ls -la "$RUNNER_TEMP/out/regions" | head -60
           df -h / | tail -1
+      - name: Add download sizes
+        if: ${{ (inputs.mode || 'publish') == 'build' || (inputs.mode || 'publish') == 'publish' }}
+        timeout-minutes: 200
+        env:
+          SHARDS: ${{ inputs.shards || 'us,ca,mx' }}
+        run: |
+          [[ "$SHARDS" =~ ^[a-z0-9-]+(,[a-z0-9-]+)*$ ]] || { echo "bad shards"; exit 1; }
+          "$RUNNER_TEMP/venv/bin/python" -I regions/region_sizes.py "$RUNNER_TEMP/out" --shards "$SHARDS"
       - name: Keep id listing
-        if: ${{ (inputs.mode || 'publish') != 'explore' }}
+        if: ${{ (inputs.mode || 'publish') == 'build' || (inputs.mode || 'publish') == 'publish' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: region-ids
@@ -77,3 +90,42 @@ jobs:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: regions/publish_regions.sh "$RUNNER_TEMP/out"
+      - name: Download published shards
+        if: ${{ (inputs.mode || 'publish') == 'sizes' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          SHARDS: ${{ inputs.shards || 'us,ca,mx' }}
+        run: |
+          [[ "$SHARDS" =~ ^[a-z0-9-]+(,[a-z0-9-]+)*$ ]] || { echo "bad shards"; exit 1; }
+          export AWS_DEFAULT_REGION=auto AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+          mkdir -p "$RUNNER_TEMP/pub/regions"
+          for f in index $(echo "$SHARDS" | tr ',' ' '); do
+            aws s3 cp "s3://$R2_BUCKET/regions/$f.json" "$RUNNER_TEMP/pub/regions/$f.json" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          done
+          ls -la "$RUNNER_TEMP/pub/regions"
+      - name: Add download sizes (published shards)
+        if: ${{ (inputs.mode || 'publish') == 'sizes' }}
+        timeout-minutes: 200
+        env:
+          SHARDS: ${{ inputs.shards || 'us,ca,mx' }}
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" -I regions/region_sizes.py "$RUNNER_TEMP/pub" --shards "$SHARDS"
+      - name: Keep sized shards
+        if: ${{ (inputs.mode || 'publish') == 'sizes' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: region-sizes
+          path: ${{ runner.temp }}/pub/regions/*.json
+          retention-days: 3
+      - name: Publish sized shards to R2
+        if: ${{ (inputs.mode || 'publish') == 'sizes' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          SHARDS: ${{ inputs.shards || 'us,ca,mx' }}
+        run: regions/publish_sizes.sh "$RUNNER_TEMP/pub" $(echo "$SHARDS" | tr ',' ' ')
