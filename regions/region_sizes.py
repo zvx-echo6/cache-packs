@@ -28,7 +28,10 @@ counts its length once for every tile id it covers; tiles not in the directory c
 Input is a directory that holds regions/<shard>.json (a fresh build, or shards downloaded from the published catalogue). The
 shards are rewritten in place; nothing else in them changes. Reads only the project's own published files.
 
-  python3 -I regions/region_sizes.py DIR [--shards us,ca,mx] [--ids us-id,us-id-jerome-county]
+  python3 -I regions/region_sizes.py DIR [--shards us,ca,mx] [--ids us-id,us-id-jerome-county] [--parts places]
+
+--parts places works out only the places size, for records that are sized already (places published after the shards were
+sized): it sets "places" and leaves every other key of "sizes", "built" included, as it is.
 """
 import argparse, collections, concurrent.futures as cf, datetime, gzip, json, math, os, struct, sys, threading, time, urllib.error, urllib.request, zlib
 import numpy as np, shapely
@@ -50,6 +53,8 @@ CACHE_ENTRIES = 40_000_000                  # PMTiles directory entries kept in 
 # contours download as "elevation".
 ELEVATION = {"id": "elevation", "offline": {"allowed": True, "source": {
     "type": "pmtiles", "url": "https://download.mapterhorn.com/planet.pmtiles", "minzoom": 0, "maxzoom": 12}}}
+
+SIZES_ORDER = ["routing", "places", "map", "offroad", "routing_build", "built"]   # key order of the schema
 
 SAMPLE_IDS = ["us-id", "us-id-jerome-county", "us-id-twin-falls-county", "us-id-twin-falls"]
 SAMPLE_NAMES = ["Magic Valley", "Southern Idaho", "Eastern Idaho"]
@@ -451,8 +456,8 @@ def shape_tile_ids(polys, level):
     return out
 
 
-def tiles_bytes(index, polys):
-    return sum(index.get((lv, i), 0) for lv in range(3) for i in shape_tile_ids(polys, lv))
+def tiles_bytes(index, polys, levels=(0, 1, 2)):
+    return sum(index.get((lv, i), 0) for lv in levels for i in shape_tile_ids(polys, lv))
 
 
 # ---- off-road (offroad_catalogue.dart, regions_state.dart) ----
@@ -480,10 +485,16 @@ class Sizer:
         self.polygon_base = DEFAULT_POLYGON_BASE
         if os.path.exists(index_path):
             self.polygon_base = json.load(open(index_path)).get("polygon_base") or DEFAULT_POLYGON_BASE
-        self.routing_cur = fetch_json(f"{DATA}/routing/current.json")
-        self.routing = load_tile_index(f"{DATA}/routing", self.routing_cur)
         self.places_cur = fetch_json(f"{DATA}/places/current.json", missing_ok=True)
         self.places = load_tile_index(f"{DATA}/places", self.places_cur) if self.places_cur else None
+        self.places_levels = tuple(self.places_cur.get("levels", (0, 1, 2))) if self.places_cur else (0, 1, 2)
+        if a.parts == "places":
+            if self.places is None:
+                raise RuntimeError("places/current.json is not published: nothing to size")
+            log(f"places build {self.places_cur['build']}: {len(self.places)} tiles, levels {list(self.places_levels)}; places only")
+            return
+        self.routing_cur = fetch_json(f"{DATA}/routing/current.json")
+        self.routing = load_tile_index(f"{DATA}/routing", self.routing_cur)
         log(f"routing build {self.routing_cur['build']}: {len(self.routing)} tiles;",
             f"places build {self.places_cur['build']}: {len(self.places)} tiles" if self.places_cur else "places not published")
         cat = fetch_json(LAYER_CATALOGUE)
@@ -519,6 +530,22 @@ class Sizer:
             raise ValueError("geometry has no polygon with at least 3 points")
         return out
 
+    def size_places(self, rec):
+        """The record's "sizes" with only "places" worked out again (put in the schema's key order), and the notes."""
+        old = rec["sizes"]
+        try:
+            places = tiles_bytes(self.places, self.polygons(rec["id"]), self.places_levels)
+        except Exception as e:
+            return old, [f"{rec['id']}: polygon not read, no places size ({e})"]
+        new = {}
+        for k in SIZES_ORDER:
+            if k == "places":
+                new[k] = places
+            elif k in old:
+                new[k] = old[k]
+        new.update({k: v for k, v in old.items() if k not in new})
+        return new, []
+
     def size(self, rec):
         """The "sizes" of one record and a list of what could not be worked out."""
         rid = rec["id"]
@@ -527,7 +554,7 @@ class Sizer:
             polys = self.polygons(rid)
             s["routing"] = tiles_bytes(self.routing, polys)
             if self.places is not None:
-                s["places"] = tiles_bytes(self.places, polys)
+                s["places"] = tiles_bytes(self.places, polys, self.places_levels)
         except Exception as e:
             notes.append(f"{rid}: polygon not read, no routing/places size ({e})")
         b = region_bounds(rec["bbox"])
@@ -565,9 +592,7 @@ class Sizer:
         if "routing" in s:
             s["routing_build"] = self.routing_cur["build"]
         s["built"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        # key order of the schema
-        order = ["routing", "places", "map", "offroad", "routing_build", "built"]
-        return {k: s[k] for k in order if k in s}, notes
+        return {k: s[k] for k in SIZES_ORDER if k in s}, notes
 
 
 def human(n):
@@ -594,6 +619,8 @@ def main():
     ap.add_argument("--shards", default="us,ca,mx", help="comma separated shard names to size")
     ap.add_argument("--ids", default="", help="test filter: comma separated record ids to size (others stay as they are)")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--parts", default="", choices=["", "places"],
+                    help="places: work out only the places size of records already sized, keeping everything else")
     a = ap.parse_args()
     t0 = time.time()
     only = {i for i in a.ids.split(",") if i}
@@ -608,12 +635,13 @@ def main():
                 log(f"shard {sh}: no file in {a.dir}/regions, skipped")
                 continue
             shard = loaded[p] = json.load(open(p))
-            todo = [r for r in shard["regions"] if r.get("bbox") and (not only or r["id"] in only)]
+            todo = [r for r in shard["regions"] if r.get("bbox") and (not only or r["id"] in only)
+                    and (a.parts != "places" or isinstance(r.get("sizes"), dict))]
             log(f"shard {sh}: {len(todo)} of {len(shard['regions'])} records to size")
             done = 0
 
             def work(r):
-                return r, *sizer.size(r)
+                return r, *(sizer.size_places(r) if a.parts == "places" else sizer.size(r))
 
             with cf.ThreadPoolExecutor(a.workers) as ex:
                 for r, s, n in ex.map(work, todo):
@@ -655,7 +683,8 @@ def main():
         for k, r in samples.items():
             if k.startswith("name:") and nm.lower() in r["name"].lower():
                 show(r)
-    log("directory reads:", sum(x.requests for x in sizer.archives.values()))
+    if a.parts != "places":
+        log("directory reads:", sum(x.requests for x in sizer.archives.values()))
 
 
 if __name__ == "__main__":

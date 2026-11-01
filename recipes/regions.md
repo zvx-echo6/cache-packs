@@ -62,6 +62,7 @@ Records of the `us`, `ca` and `mx` shards carry `sizes`: what the app would down
 - `offroad`: the packs of `offroad/current.json` that cover the region (the smallest pack whose box holds it, else every pack whose box meets it) with each pack's `offroad.sqlite` bytes, and `terrain`: the Mapterhorn z12 elevation bytes over the region's box cut to each pack's box, added up. Left out when no pack covers the region.
 - A part that cannot be worked out (a polygon that cannot be read, a box the layer engine rejects) is left out of the record, never written as null or 0. Nothing else in a record changes.
 - `routing_build` is the routing build the numbers belong to; `built` is when they were computed. Sizes go stale when a new routing, places, off-road or map build is published; run the `sizes` mode again then.
+- `region_sizes.py --parts places` works out only `places`, for records that are sized already (places published after the shards were sized); every other key, `built` included, is kept as it is. Places are level 1 only, so only the levels in `places/current.json` are looked up.
 
 The shard bytes and checksums in `manifest.json` and `index.json` describe the shards as the build wrote them, before sizes were added; the `sizes` mode does not rewrite those two files.
 
