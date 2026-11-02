@@ -1,0 +1,14 @@
+# ESA WorldCover 2021 v200 class -> friction x10 (10 = 1.0; 255 = water, impassable). Unlisted classes, and 0 (no data), map to 0 = impassable.
+# Recovered (B0, 2026-10-29) from a joint histogram of 3.9 billion pixels: WorldCover tiles N42W114, N45W114, N48W117 against
+# navi's friction tiles of the same grid. Every class had exactly one friction value (a pure lookup). Class 95 (mangroves) did not occur.
+class	friction	pixels	land cover
+10	20	1755585603	tree cover
+20	15	54868744	shrubland
+30	12	1470055034	grassland
+40	10	255077741	cropland
+50	10	15863370	built-up
+60	11	180260485	bare / sparse vegetation
+70	40	8655025	snow and ice
+80	255	52617195	permanent water bodies
+90	40	662256	herbaceous wetland
+100	12	94354547	moss and lichen

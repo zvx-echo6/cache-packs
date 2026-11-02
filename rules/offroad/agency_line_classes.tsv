@@ -1,0 +1,19 @@
+# Agency lines -> trails layer value (5 road, 15 track, 25 foot trail), burned with the OSM lines when AGENCY_LINES=1.
+# `code` is the attribute value before " - " (USFS coded values such as "2 - HIGH CLEARANCE VEHICLES"), upper case; empty = no value.
+# Lines whose code is not listed are not burned. Project decision (2026-10-29), proposed for review: changes routes against an OSM-only build.
+source	field	code	burn
+usfs_road	OPER_MAINT_LEVEL	5	5
+usfs_road	OPER_MAINT_LEVEL	4	5
+usfs_road	OPER_MAINT_LEVEL	3	5
+usfs_road	OPER_MAINT_LEVEL	2	15
+usfs_road	OPER_MAINT_LEVEL	1	15
+usfs_road	OPER_MAINT_LEVEL		15
+usfs_trail	TRAIL_TYPE	TERRA	25
+blm	subset	MOTORIZED_ROAD	15
+blm	subset	LIMITED_MOTORIZED_ROAD	15
+blm	subset	MOTORIZED_TRAIL	25
+blm	subset	LIMITED_MOTORIZED_TRAIL	25
+blm	subset	NONMECHANIZED_TRAIL	25
+blm	subset	NONMOTORIZED_TRAIL	25
+blm	subset	MANAGED_TRAIL	25
+blm	subset	NOT_ASSESSED_TRAIL	25
