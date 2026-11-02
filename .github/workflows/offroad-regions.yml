@@ -4,20 +4,15 @@ name: offroad-regions
 # assets of a GitHub pre-release. Runs only by hand. It never publishes to R2 and never touches a catalogue.
 # Elevation is not an asset: it comes from Mapterhorn (each region's manifest says which tiles); the extract is used
 # here only to pick the cells the pack covers.
-# The push trigger only registers the workflow from this branch (it is not on the default branch); every job is skipped
-# unless the run was started by hand.
 on:
-  push:
-    branches: [offroad-data]
-    paths: [.github/workflows/offroad-regions.yml]
   workflow_dispatch:
     inputs:
       release:
         description: Pre-release tag the files are staged in
         default: offroad-2026-10
       cache_ref:
-        description: Commit of the Cache repo that offroad_pack is built from
-        default: 024274848df6769f1a4f87fe700e303fdcac1adb
+        description: Commit of the Cache repo that offroad_pack is built from (default the rel-30 merge that has build-sources)
+        default: 69784fd602047946b95436d49891ea29a8d81664
       regions:
         description: Regions to build, comma-separated (empty = all)
         default: ""
@@ -40,13 +35,17 @@ jobs:
           repository: zvx-echo6/cache
           ref: ${{ inputs.cache_ref }}
           path: cache-src
-          sparse-checkout: packages/cache_search
+          # The workspace (packages/cache_search/native) also has members in packages/cache_chunk and packages/cache_classify.
+          sparse-checkout: |
+            packages/cache_search
+            packages/cache_chunk
+            packages/cache_classify
           persist-credentials: false
       - name: Build offroad_pack
         run: |
           mkdir -p "$RUNNER_TEMP/target" "$RUNNER_TEMP/cargo"
-          docker run --rm -v "$PWD/cache-src/packages/cache_search:/src:ro" -v "$RUNNER_TEMP/cargo:/usr/local/cargo/registry" \
-            -v "$RUNNER_TEMP/target:/t" -e CARGO_TARGET_DIR=/t -w /src/native rust:1.90-slim \
+          docker run --rm -v "$PWD/cache-src/packages:/src:ro" -v "$RUNNER_TEMP/cargo:/usr/local/cargo/registry" \
+            -v "$RUNNER_TEMP/target:/t" -e CARGO_TARGET_DIR=/t -w /src/cache_search/native rust:1.99.1-slim \
             cargo build -q --locked --release -j 4 -p offroad_pack
           mkdir -p bin && cp "$RUNNER_TEMP/target/release/offroad_pack" bin/
           sha256sum bin/offroad_pack
