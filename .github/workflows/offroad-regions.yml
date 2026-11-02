@@ -11,8 +11,8 @@ on:
         description: Pre-release tag the files are staged in
         default: offroad-2026-10
       cache_ref:
-        description: Commit of the Cache repo that offroad_pack is built from
-        default: 024274848df6769f1a4f87fe700e303fdcac1adb
+        description: Commit of the Cache repo that offroad_pack is built from (default the rel-30 merge that has build-sources)
+        default: 69784fd602047946b95436d49891ea29a8d81664
       regions:
         description: Regions to build, comma-separated (empty = all)
         default: ""
