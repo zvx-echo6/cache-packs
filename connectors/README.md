@@ -51,7 +51,7 @@ Relative paths never contain `..` and never start with `/`; an app must reject a
 
 ## Definition format (format 2)
 
-The format is read by the `cache_live` crate (`packages/cache_search/native/cache_live/src/def.rs`), described in full, with an example per feature, in `packages/cache_search/DESIGN.md` ("Live sources"), and available as a JSON Schema (`packages/cache_search/schema/live-source.schema.json`) that editors can check a definition against. Format 2 is a superset of format 1: older files still load. In short:
+The format is read by the `cache_live` crate (`packages/cache_search/native/cache_live/src/def.rs`), described in full, with an example per feature, in `packages/cache_search/DESIGN.md` ("Live sources"), and available as a JSON Schema (`packages/cache_search/schema/live-source.schema.json`) that editors can check a definition against. Format 2 is a superset of format 1: older files still load. Format 3 is a superset of format 2 that adds `cache_hours` (reuse a step's response), `cap_area` (match CAP alert areas to the place) and `unless`; `ipaws-alerts-near` uses it, and a core that reads only format 2 refuses such a file by its format line. In short:
 
 ```
 { "format": 2, "id": "...", "title": "...", "provider": "...",
