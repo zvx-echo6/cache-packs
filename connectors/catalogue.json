@@ -5,7 +5,7 @@
   "maintainer": "Cache project",
   "homepage": "https://github.com/zvx-echo6/cache-packs/tree/main/connectors",
   "base_url": "https://cache.echo6.co/connectors/",
-  "updated": "2026-10-29",
+  "updated": "2026-11-03",
   "connectors": [
     {
       "id": "nws-alerts-point",
@@ -20,6 +20,20 @@
       "attribution": "Alerts from the US National Weather Service (weather.gov)",
       "license": "US Government work, public domain",
       "docs": "https://www.weather.gov/documentation/services-web-api"
+    },
+    {
+      "id": "ipaws-alerts-near",
+      "title": "Emergency alerts",
+      "description": "emergency alerts from local, state and federal officials, including evacuation orders, for the place (FEMA IPAWS, US)",
+      "category": "alerts",
+      "provider": "FEMA IPAWS",
+      "coverage": "US",
+      "needs_key": false,
+      "default_on": true,
+      "path": "alerts/ipaws-alerts-near.json",
+      "attribution": "Alerts from the issuing officials through FEMA's Integrated Public Alert and Warning System (IPAWS); county lookup from the US National Weather Service (weather.gov)",
+      "license": "Public alert messages of the issuing US officials, distributed by FEMA's public IPAWS-OPEN EAS feed (no key or account)",
+      "docs": "https://www.fema.gov/emergency-managers/practitioners/integrated-public-alert-warning-system"
     },
     {
       "id": "avalanche-forecast-zones",
