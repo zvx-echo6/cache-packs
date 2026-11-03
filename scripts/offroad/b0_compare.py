@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""One-time calibration (B0): compare rebuilt inputs with navi's (read-only analysis, never a build input).
+"""One-time calibration (B0): compare rebuilt inputs with the reference server's (read-only analysis, never a build input).
 
-  b0_compare.py entry NAVI.tsv NEW.tsv      navi rows: lat lon highway (no header); new: entry_points.tsv
-      counts per highway class, and the share of navi points within 1 m of a new point
-  b0_compare.py raster NAVI.tif NEW.tif     cell agreement over the overlap (same pixel size and anchor),
-      on cells that are non-zero in either, with the (navi, new) value matrix
+  b0_compare.py entry REF.tsv NEW.tsv      reference rows: lat lon highway (no header); new: entry_points.tsv
+      counts per highway class, and the share of reference points within 1 m of a new point
+  b0_compare.py raster REF.tif NEW.tif     cell agreement over the overlap (same pixel size and anchor),
+      on cells that are non-zero in either, with the (reference, new) value matrix
 """
 import math, sys
 from collections import Counter, defaultdict
 
 
-def entry(navi_path, new_path):
-    navi, new = Counter(), Counter()
+def entry(ref_path, new_path):
+    ref, new = Counter(), Counter()
     cell = defaultdict(list)
     q = 1e-5  # ~1.1 m in latitude
     with open(new_path) as fh:
@@ -22,11 +22,11 @@ def entry(navi_path, new_path):
             new[hw] += 1
             cell[(int(la // q), int(lo // q))].append((la, lo))
     near = total = 0
-    with open(navi_path) as fh:
+    with open(ref_path) as fh:
         for line in fh:
             la, lo, hw = line.rstrip("\n").split("\t")
             la, lo = float(la), float(lo)
-            navi[hw] += 1
+            ref[hw] += 1
             total += 1
             ci, cj = int(la // q), int(lo // q)
             k = math.cos(math.radians(la))
@@ -38,18 +38,18 @@ def entry(navi_path, new_path):
                             hit = True
                             break
             near += hit
-    print("highway\tnavi\tnew\tratio")
-    for hw in sorted(set(navi) | set(new), key=lambda h: -navi[h]):
-        print(f"{hw}\t{navi[hw]}\t{new[hw]}\t{new[hw] / navi[hw]:.3f}" if navi[hw] else f"{hw}\t0\t{new[hw]}\t-")
-    print(f"total\t{sum(navi.values())}\t{sum(new.values())}")
-    print(f"navi points within 1 m of a new point: {near}/{total} = {100 * near / total:.2f}%")
+    print("highway\tref\tnew\tratio")
+    for hw in sorted(set(ref) | set(new), key=lambda h: -ref[h]):
+        print(f"{hw}\t{ref[hw]}\t{new[hw]}\t{new[hw] / ref[hw]:.3f}" if ref[hw] else f"{hw}\t0\t{new[hw]}\t-")
+    print(f"total\t{sum(ref.values())}\t{sum(new.values())}")
+    print(f"reference points within 1 m of a new point: {near}/{total} = {100 * near / total:.2f}%")
 
 
-def raster(navi_path, new_path):
+def raster(ref_path, new_path):
     import numpy as np
     from osgeo import gdal
     gdal.UseExceptions()
-    a, b = gdal.Open(navi_path), gdal.Open(new_path)
+    a, b = gdal.Open(ref_path), gdal.Open(new_path)
     ga, gb = a.GetGeoTransform(), b.GetGeoTransform()
     if abs(ga[1] - gb[1]) > 1e-12 or abs(ga[5] - gb[5]) > 1e-12:
         sys.exit("pixel sizes differ")
@@ -70,7 +70,7 @@ def raster(navi_path, new_path):
     nz = m.sum() - m[0, 0]
     same = sum(m[i, i] for i in range(1, 256))
     print(f"overlap {ax1 - ax0} x {ay1 - ay0} px; cells non-zero in either: {nz}; equal: {same} ({100 * same / max(nz, 1):.2f}%)")
-    print("navi\tnew\tcells")
+    print("ref\tnew\tcells")
     for i, j in zip(*np.nonzero(m)):
         if i or j:
             print(f"{i}\t{j}\t{m[i, j]}")

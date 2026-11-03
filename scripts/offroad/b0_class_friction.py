@@ -4,7 +4,7 @@
 usage: b0_class_friction.py CLASS_DIR FRICTION_DIR > counts.tsv
 Pairs ESA_WorldCover_10m_2021_v200_<tile>_Map.tif with <tile>_Friction.tif (same grid), and prints the joint
 histogram as `class<TAB>friction<TAB>pixels`. A class with exactly one friction value is a pure lookup. The
-friction tiles were navi's (read-only analysis input); they are never a build input.
+friction tiles were the reference server's (read-only analysis input); they are never a build input.
 """
 import glob, os, sys
 import numpy as np

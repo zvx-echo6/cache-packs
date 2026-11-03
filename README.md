@@ -31,13 +31,13 @@ Layers are national builds (the whole US, one file per layer); routing packs are
 | [valhalla-routing](recipes/valhalla-routing.md) | Release assets, one release per region (Valhalla 3.7.0) | Idaho, Montana, Utah, Oregon, Washington, Nevada, Wyoming |
 | [regions](recipes/regions.md) | Region catalogue JSON plus one polygon per region (Overture divisions, US Census metro areas) | worldwide, see recipe |
 | [basemap-planet](recipes/basemap-planet.md) | Protomaps v4 planet base map, z0-z15, copied to the tile host | see the catalogue |
-| [offroad-region](recipes/offroad-region.md) | Off-road data file (`offroad.sqlite`, pack format 2) plus a Mapterhorn z12 elevation extract, per region | Idaho test build on navi-build, not published |
+| [offroad-region](recipes/offroad-region.md) | Off-road data file (`offroad.sqlite`, pack format 2) plus a Mapterhorn z12 elevation extract, per region | Idaho test build on a build machine, not published |
 
 Not yet built: places. The off-road data file has a test build only (Idaho, below).
 
 ## Off-road Idaho test build (2026-10-29)
 
-Built on navi-build CT 138 with `BBOX=-118.0,41.5,-110.3,49.5` (Idaho plus 50 km), `AGENCY_LINES=1`, OSM from Geofabrik `north-america-latest.osm.pbf` (2026-10-18). Not published.
+Built on a build machine with `BBOX=-118.0,41.5,-110.3,49.5` (Idaho plus 50 km), `AGENCY_LINES=1`, OSM from Geofabrik `north-america-latest.osm.pbf` (2026-10-18). Not published.
 
 | File | Size | Contents |
 |---|---|---|
@@ -46,5 +46,5 @@ Built on navi-build CT 138 with `BBOX=-118.0,41.5,-110.3,49.5` (Idaho plus 50 km
 
 Step times (4-6 CPUs): fetches 0.5-6 min each and in parallel (the OSM cut from the North America file is the longest), prep 1 min each, rasterise 4.5 min, pack 3 min.
 
-Checks against navi's inputs (B0, read-only): class -> friction is a pure lookup over 3.9 billion pixels; PAD-US barriers agree on 98.9% and wilderness on 99.9% of the cells that are set in either; OSM-only trails agree on 93.8% of such cells in central Idaho with `ALL_TOUCHED` (72.6% without); trailheads on the Idaho extract are 773,336 against navi's 740,430 (+4.4%), and 97.8% of navi's points lie within 1 m of a new one.
+Checks against the reference server's inputs (B0, read-only): class -> friction is a pure lookup over 3.9 billion pixels; PAD-US barriers agree on 98.9% and wilderness on 99.9% of the cells that are set in either; OSM-only trails agree on 93.8% of such cells in central Idaho with `ALL_TOUCHED` (72.6% without); trailheads on the Idaho extract are 773,336 against the reference server's 740,430 (+4.4%), and 97.8% of its points lie within 1 m of a new one.
 

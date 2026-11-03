@@ -7,7 +7,7 @@ DIR holds the EDW downloads Trans_MVUM_Road.gdb.zip, Trans_MVUM_Trail.gdb.zip an
 router reads (lower case) plus `is_trail`, `fid` (USFS GLOBALID) and `backfilled`; a feature is kept when its bbox
 meets --bbox. Counts go to <out dir>/mvum.counts.
 
-Backfill rule (the one navi documented in README-mvum-ingest.md): a trail with no shape takes the geometry of the
+Backfill rule (the one the reference server's MVUM ingest documents): a trail with no shape takes the geometry of the
 NFS trail segments whose TRAIL_NO equals its ID and TRAIL_NAME equals its NAME, within the forest's ADMIN_ORG
 4-character prefix. The forest -> prefix map is learned from the trails that do have a shape; a forest with no
 learnable prefix (or no in-prefix match) falls back to number and name alone. The segments are written as one

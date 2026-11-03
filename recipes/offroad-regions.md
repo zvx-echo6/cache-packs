@@ -45,7 +45,7 @@ Mapterhorn by the app. A region that is split for size (for example `california-
 
 ## Publishing
 
-`scripts/publish-offroad-regions.sh BUILD WORK SOURCE:REGION...` on a Docker host (navi-build CT 138), with the bucket's S3
+`scripts/publish-offroad-regions.sh BUILD WORK SOURCE:REGION...` on a Docker host (a build machine), with the bucket's S3
 keys in the environment (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_URL`):
 
 1. `publish_offroad.py stage`: download each region's assets from the pre-release (or a local folder), join parts, and
