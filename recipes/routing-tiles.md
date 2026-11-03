@@ -7,7 +7,7 @@ place. Replaces the per-state `valhalla-routing` releases for the app.
 
 ## Source
 
-- Valhalla 3.7.0 tiles (`valhalla_tiles.tar`) built from Geofabrik's `north-america-latest.osm.pbf` on the navi builder
+- Valhalla 3.7.0 tiles (`valhalla_tiles.tar`) built from Geofabrik's `north-america-latest.osm.pbf` on a build machine
   (`scripts/build-routing-tiles.sh`), with our own admin database (below), the time zone database of
   `/build/valhalla/custom_files` and the speed table below. Licence: ODbL 1.0, (c) OpenStreetMap contributors.
 - `tilecut --explode` (cache repository, `packages/valhalla/tools/tilecut`) splits the tar into tiles and writes the index.

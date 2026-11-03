@@ -1,5 +1,5 @@
 # OSM highway value -> trails layer value (5 road, 15 track, 25 foot trail). Lower wins where lines overlap.
-# Project decision (2026-10-29): from navi trails.py values and the class sets in navi-layer-origins.md 8d; calibrated against navi trails.tif (B0).
+# Project decision (2026-10-29): from the reference server's trail classes and its layer notes; calibrated against its trails raster (B0).
 highway	burn
 motorway	5
 trunk	5

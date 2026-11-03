@@ -3,7 +3,7 @@
 #
 #   build-offroad-region.sh REGION WORK [STEP ...]
 #
-# Runs on a Docker host (navi-build CT 138); every tool runs in a pinned container, nothing is installed on the host.
+# Runs on a Docker host (a build machine); every tool runs in a pinned container, nothing is installed on the host.
 # Env: BBOX=w,s,e,n (required); OSM_PBF (a Geofabrik .osm.pbf that covers BBOX, read only); CACHE_SRC (a checkout of
 # the Cache repo, for offroad_pack; or OFFROAD_PACK, a prebuilt offroad_pack binary from the rust image below); CPUS
 # (default 8); AGENCY_LINES (1 = burn USFS and BLM lines into the trails layer, the default; 0 = OSM only);
@@ -147,8 +147,8 @@ print("%.4f %.4f %.4f %.4f"%(f(w,ax,0)-2*p,f(s,ay,0)-2*p,f(e,ax,1)+2*p,f(n,ay,1)
 rasterise() {
   local r="$WORK/work/r"; mkdir -p "$r"
   local co=(-ot Byte -a_nodata none -init 0 -co COMPRESS=DEFLATE -co TILED=YES -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 -co BIGTIFF=IF_SAFER)
-  # trails: 0.0003 degree grid anchored at (-180, 90) like navi's trails.tif, ALL_TOUCHED (B0: 93.8% cell agreement with
-  # navi's raster against 72.6% for the default mode); burn order 25, 15, 5 so the lower value wins
+  # trails: 0.0003 degree grid anchored at (-180, 90) like the reference server's trails raster, ALL_TOUCHED (B0: 93.8% cell agreement with
+  # the reference raster against 72.6% for the default mode); burn order 25, 15, 5 so the lower value wins
   local te_t; te_t=$(grid_te "$BB_W" "$BB_S" "$BB_E" "$BB_N" -180 90)
   rm -f "$r/trails.tif"
   local lines=(work/osm_lines.geojsonl); [ "$AGENCY_LINES" = 1 ] && lines+=(work/agency_lines.geojsonl)
@@ -164,7 +164,7 @@ rasterise() {
       fi
     done
   done
-  # barriers and wilderness: the same pixel size, anchored at (-125, 50) like navi's PAD-US rasters
+  # barriers and wilderness: the same pixel size, anchored at (-125, 50) like the reference server's PAD-US rasters
   local te_p; te_p=$(grid_te "$BB_W" "$BB_S" "$BB_E" "$BB_N" -125 50)
   rm -f "$r/barriers.tif" "$r/wilderness.tif"
   if [ "$LAND_ACCESS" = none ]; then

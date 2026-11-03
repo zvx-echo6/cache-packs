@@ -7,7 +7,7 @@ Region pack (not a tile layer): the off-road router's data for one region, built
 
 `ATTRIBUTION.json` lists every source with its licence and required statement.
 
-Nothing here uses navi's files. navi's data was read once (B0, read-only) to recover the rules that were never written down; those rules are now the files in `rules/offroad/`.
+Nothing here uses the reference server's files. Its data was read once (B0, read-only) to recover the rules that were never written down; those rules are now the files in `rules/offroad/`.
 
 ## Sources
 
@@ -25,15 +25,15 @@ BLM terms (from the dataset record): cite the BLM as the source; describe modifi
 
 ## Rules (`rules/offroad/`)
 
-- `class_friction.tsv`: WorldCover class -> friction x10. Recovered from a joint histogram of 3.9 billion pixels (three Idaho tiles against navi's friction tiles of the same grid, `scripts/offroad/b0_class_friction.py`). Every class had exactly one friction value, so friction is a pure lookup and a later format can compute it on the phone instead of shipping it.
+- `class_friction.tsv`: WorldCover class -> friction x10. Recovered from a joint histogram of 3.9 billion pixels (three Idaho tiles against the reference server's friction tiles of the same grid, `scripts/offroad/b0_class_friction.py`). Every class had exactly one friction value, so friction is a pure lookup and a later format can compute it on the phone instead of shipping it.
 - `osm_trail_classes.tsv`: OSM `highway` -> 5 road, 15 track, 25 foot trail. Burn order 25, 15, 5, so the lower value wins where lines overlap.
-- `entry_point_classes.tsv`: the `highway` values whose way end nodes become trailhead (entry) points; the class set found in navi's `trail_entry_points` over Idaho.
+- `entry_point_classes.tsv`: the `highway` values whose way end nodes become trailhead (entry) points; the class set found in the reference server's `trail_entry_points` over Idaho.
 - `agency_line_classes.tsv`: USFS and BLM attribute codes -> trails value. Proposed, not reviewed: these lines change routes against an OSM-only build (`AGENCY_LINES=0`).
 - MVUM backfill (`scripts/offroad/prep_mvum.py`): a trail with no shape takes the NFS segments with the same `TRAIL_NO` and `TRAIL_NAME`, within the forest's `ADMIN_ORG` 4-character prefix learned from shaped trails, falling back to number and name alone.
 
 ## Grid
 
-- Rasters (`gdal_rasterize`): 0.0003 degree EPSG:4326 pixels. Trails are anchored at (-180, 90) and burned with `ALL_TOUCHED`; barriers and wilderness are anchored at (-125, 50) with the default burn mode. These are the grids of navi's rasters, so a line is 2-3 z12 cells wide after the pack's nearest resample.
+- Rasters (`gdal_rasterize`): 0.0003 degree EPSG:4326 pixels. Trails are anchored at (-180, 90) and burned with `ALL_TOUCHED`; barriers and wilderness are anchored at (-125, 50) with the default burn mode. These are the grids of the reference server's rasters, so a line is 2-3 z12 cells wide after the pack's nearest resample.
 - Pack: every z12 tile the elevation extract holds inside the bbox; each cell takes the nearest source pixel at its true web-mercator centre (`offroad_pack build-sources`).
 
 ## Steps
