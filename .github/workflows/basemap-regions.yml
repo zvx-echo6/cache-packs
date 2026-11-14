@@ -1,0 +1,100 @@
+name: basemap-regions
+
+# Pre-cuts the base map: one PMTiles file per catalogue region, the planet's tiles inside the region's outline
+# (scripts/basemap_regions.py, scripts/pmtiles_cut.py, recipes/basemap-regions.md). By hand only.
+# Writes only basemap-regions/<planet version>/ on the bucket; never the region lists, the catalogue or anything else.
+on:
+  workflow_dispatch:
+    inputs:
+      planet_version:
+        description: Planet build date already mirrored in R2 (basemap/protomaps-planet-<date>.pmtiles), e.g. 20261103
+        required: true
+      regions:
+        description: "Regions: ids:us-id-ada-county,us-ut-moab | state:us-id,us-ut | country:us | na (us, ca, mx, gl)"
+        required: true
+      dry_run:
+        description: Cut and verify only; upload nothing (no R2 keys are given to the jobs)
+        type: boolean
+        default: true
+      maxzoom:
+        description: "Highest zoom: 15 for every region, or 'catalogue' for the zoom the region list sizes each region at"
+        default: "15"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: basemap-regions-${{ inputs.planet_version }}
+  cancel-in-progress: false
+
+env:
+  R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+  SELECTOR: ${{ inputs.regions }}
+  PLANET_VERSION: ${{ inputs.planet_version }}
+  MAXZOOM: ${{ inputs.maxzoom }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      matrix: ${{ steps.p.outputs.matrix }}
+      shards_sha: ${{ steps.p.outputs.shards_sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Python libraries
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q numpy==1.26.4 pytest==8.3.3
+      - name: Tests
+        run: '"$RUNNER_TEMP/venv/bin/python" -m pytest -q tests/'
+      - id: p
+        name: Plan
+        run: |
+          [[ "$PLANET_VERSION" =~ ^[0-9]{8}$ ]] || { echo "planet_version must be YYYYMMDD"; exit 1; }
+          "$RUNNER_TEMP/venv/bin/python" scripts/basemap_regions.py plan --selector "$SELECTOR"
+
+  cut:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      # the write keys reach a job only when it uploads
+      AWS_ACCESS_KEY_ID: ${{ !inputs.dry_run && secrets.R2_ACCESS_KEY_ID || '' }}
+      AWS_SECRET_ACCESS_KEY: ${{ !inputs.dry_run && secrets.R2_SECRET_ACCESS_KEY || '' }}
+      R2_ENDPOINT: ${{ !inputs.dry_run && secrets.R2_ENDPOINT || '' }}
+      R2_BUCKET: ${{ !inputs.dry_run && secrets.R2_BUCKET || '' }}
+      GROUP: ${{ matrix.group }}
+      SHARDS_SHA: ${{ needs.plan.outputs.shards_sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h / | tail -1
+      - name: Python libraries
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q numpy==1.26.4
+      - name: rclone
+        if: ${{ !inputs.dry_run }}
+        run: scripts/setup-rclone.sh
+      - name: Cut, verify, upload
+        run: |
+          DRY=(); [ "${{ inputs.dry_run }}" = "true" ] && DRY=(--dry-run)
+          "$RUNNER_TEMP/venv/bin/python" scripts/basemap_regions.py run --selector "$SELECTOR" --group "$GROUP" \
+            --planet-version "$PLANET_VERSION" --shards-sha "$SHARDS_SHA" --maxzoom "$MAXZOOM" \
+            --work "$RUNNER_TEMP/work" "${DRY[@]}"
+          df -h / | tail -1
+      - name: Keep the manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: manifest-${{ matrix.group }}
+          path: ${{ runner.temp }}/work/manifest-*.json
+          if-no-files-found: ignore
+          retention-days: 14
