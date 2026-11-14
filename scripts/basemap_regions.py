@@ -24,7 +24,7 @@ manifest's size and SHA-256 (stored as the object's sha256 metadata at upload).
 Env: R2_PUBLIC_URL (regions and planet are read from it over HTTPS). For uploads also R2_BUCKET, R2_ENDPOINT,
 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (rclone is configured from them; nothing prints them).
 """
-import argparse, datetime, hashlib, json, os, re, subprocess, sys, time, urllib.request
+import argparse, concurrent.futures as cf, datetime, hashlib, json, math, os, re, subprocess, sys, threading, time, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pmtiles_cut as pc  # noqa: E402
@@ -190,19 +190,94 @@ class R2:
         return found
 
 
+# ---------------------------------------------------------------- time estimates and job split
+
+# The model the plan sizes jobs by. Calibrated on the first dry run (2026-11-14: about 0.25 s per range request from a
+# runner, about 20 range requests a small region) and the measurement's 20 to 45 MB/s; all on the slow side on purpose.
+FIXED_S = 2.5            # per region, cut and verify: outline fetch, its directory pages, merged tile and verify reads
+FIXED_UPLOAD_S = 3.0     # per region when uploading: rclone start, PUT, the size/sha256 check
+READ_BPS = 40e6          # planet range reads, per job
+UPLOAD_BPS = 40e6        # uploads to R2, per job
+ZOOM_STEP = 2.7          # bytes to one zoom deeper (z0..z15 over z0..z14), for regions the list sizes below z15
+SPLIT_S = 4 * 3600       # a job estimated above this is split into parts
+PARALLEL = 4             # regions cut at once in a job
+
+
+def density(picked):
+    """Bytes per km² of the base map at z15 over the box, from the sized regions of the selection (fallback for the few the
+    region list has no size for)."""
+    b = a = 0.0
+    for _, r in picked:
+        s = (((r.get("sizes") or {}).get("map") or {}).get("basemap"))
+        if s and s[1] == 15 and (r.get("area_km2") or 0) >= 1000:
+            b += s[0]
+            a += r["area_km2"]
+    return b / a if a else 2500.0
+
+
+def est_bytes(rec, maxz, dens):
+    s = (((rec.get("sizes") or {}).get("map") or {}).get("basemap"))
+    if s and isinstance(s[0], (int, float)) and isinstance(s[1], int):
+        return float(s[0]) * ZOOM_STEP ** (maxz - s[1])
+    return float(rec.get("area_km2") or 0) * dens * ZOOM_STEP ** (maxz - 15)
+
+
+def est_seconds(sizes, dry, parallel=PARALLEL):
+    if not sizes:
+        return 0.0
+    fixed = FIXED_S + (0 if dry else FIXED_UPLOAD_S)
+    per_byte = 1 / READ_BPS + (0 if dry else 1 / UPLOAD_BPS)
+    return max(len(sizes) * fixed / parallel + sum(sizes) * per_byte, fixed + max(sizes) * per_byte)
+
+
+def jobs_for(picked, maxzoom, dry):
+    """[(group, part, parts, [records], est seconds, est bytes)], a group split into as many parts as it needs to stay under
+    SPLIT_S (largest regions first, each to the least loaded part). The same input gives the same split in plan and run."""
+    dens = density(picked)
+    groups = {}
+    for g, r in picked:
+        groups.setdefault(g, []).append((r, est_bytes(r, maxzoom_for(r, maxzoom), dens)))
+    out = []
+    for g in sorted(groups):
+        items = groups[g]
+        total = est_seconds([b for _, b in items], dry)
+        parts = max(1, min(len(items), math.ceil(total / SPLIT_S)))
+        while True:
+            bins = [[] for _ in range(parts)]
+            load = [0.0] * parts
+            for r, b in sorted(items, key=lambda x: (-x[1], x[0]["id"])):
+                k = min(range(parts), key=lambda i: (load[i], i))
+                bins[k].append((r, b))
+                load[k] += b + FIXED_S * READ_BPS / PARALLEL      # fixed time as bytes, so counts balance too
+            ests = [est_seconds([b for _, b in x], dry) for x in bins]
+            if max(ests) <= SPLIT_S or parts >= len(items):
+                break
+            parts += 1
+        for i, x in enumerate(bins):
+            out.append((g, i + 1, parts, sorted((r for r, _ in x), key=lambda r: r["id"]), ests[i], sum(b for _, b in x)))
+    return out
+
+
+def job_name(g, part, parts):
+    return g if parts == 1 else f"{g}-part{part}-of{parts}"
+
+
 # ---------------------------------------------------------------- commands
 
 def cmd_plan(a):
     picked, sha = select(a.regions_base, a.selector)
-    groups = {}
-    for g, _ in picked:
-        groups[g] = groups.get(g, 0) + 1
-    if len(groups) > MAX_JOBS:
-        raise pc.CutError(f"{len(groups)} jobs is above GitHub's matrix limit of {MAX_JOBS}; select less")
-    matrix = {"include": [{"group": g, "regions": n} for g, n in sorted(groups.items())]}
-    print(f"{len(picked)} regions in {len(groups)} jobs; shards sha256 {sha}")
-    for g, n in sorted(groups.items()):
-        print(f"  {g}: {n}")
+    jobs = jobs_for(picked, a.maxzoom, a.dry_run)
+    if len(jobs) > MAX_JOBS:
+        raise pc.CutError(f"{len(jobs)} jobs is above GitHub's matrix limit of {MAX_JOBS}; select less")
+    matrix = {"include": [{"group": g, "part": p, "parts": n, "regions": len(rs), "est_minutes": round(s / 60)}
+                          for g, p, n, rs, s, _ in jobs]}
+    wall = sum(s for *_, s, _ in jobs)
+    print(f"{len(picked)} regions in {len(jobs)} jobs ({'dry run' if a.dry_run else 'with upload'}, maxzoom {a.maxzoom}); "
+          f"estimated {sum(b for *_, b in jobs) / 1e9:.1f} GB, {wall / 3600:.1f} job-hours, "
+          f"about {wall / 3600 / 8:.1f} h at 8 jobs at once (the longest job sets a floor of {max(s for *_, s, _ in jobs) / 3600:.1f} h)")
+    print(f"shards sha256 {sha}")
+    for g, p, n, rs, s, b in sorted(jobs, key=lambda j: -j[4]):
+        print(f"  {job_name(g, p, n):24s} {len(rs):5d} regions  {b / 1e9:7.2f} GB  est {s / 60:6.0f} min")
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"matrix={json.dumps(matrix, separators=(',', ':'))}\nshards_sha={sha}\n")
@@ -216,9 +291,15 @@ def cmd_run(a):
     picked, sha = select(a.regions_base, a.selector)
     if a.shards_sha and sha != a.shards_sha:
         raise pc.CutError("the region lists changed since the plan; run the workflow again")
-    regions = [r for g, r in picked if g == a.group]
-    if not regions:
+    mine = [j for j in jobs_for(picked, a.maxzoom, a.dry_run) if j[0] == a.group]
+    if not mine:
         raise pc.CutError(f"no region of the selector is in group {a.group}")
+    if mine[0][2] != a.parts or not 1 <= a.part <= a.parts:
+        raise pc.CutError(f"group {a.group} has {mine[0][2]} parts now, not {a.parts}; run the workflow again")
+    _, _, _, regions, est_s, est_b = mine[a.part - 1]
+    name = job_name(a.group, a.part, a.parts)
+    print(f"job {name}: {len(regions)} regions, estimated {est_b / 1e9:.2f} GB and {est_s / 60:.0f} min "
+          f"({a.parallel} at once)", flush=True)
     index = json.loads(get(a.regions_base + "index.json"))
     poly_base = index.get("polygon_base") or (a.regions_base + "polygons/")
     planet = f"{a.public_url.rstrip('/')}/basemap/protomaps-planet-{a.planet_version}.pmtiles"
@@ -227,67 +308,100 @@ def cmd_run(a):
     r2 = None if a.dry_run else R2(a.planet_version)
     earlier = r2.manifests() if r2 else {}
     os.makedirs(a.work, exist_ok=True)
-    man_path = os.path.join(a.work, f"manifest-{a.group}.json")
-    man_key = f"{PREFIX}/{a.planet_version}/manifests/{a.group}.json"
+    disk = pc.DiskBudget(a.work)
+    man_path = os.path.join(a.work, f"manifest-{name}.json")
+    man_key = f"{PREFIX}/{a.planet_version}/manifests/{name}.json"
     manifest = {"format": 1, "prefix": f"{PREFIX}/{a.planet_version}/", "planet": planet, "planet_version": a.planet_version,
-                "group": a.group, "selector": a.selector, "shards_sha256": sha, "dry_run": bool(a.dry_run),
-                "maxzoom_mode": a.maxzoom, "started": now(), "regions": []}
+                "group": a.group, "part": a.part, "parts": a.parts, "selector": a.selector, "shards_sha256": sha,
+                "dry_run": bool(a.dry_run), "maxzoom_mode": a.maxzoom, "planned_regions": len(regions),
+                "estimate_minutes": round(est_s / 60), "started": now(), "regions": []}
+    lock = threading.Lock()
+    stop = threading.Event()
 
     def save(final=False):
-        manifest["updated"] = now()
-        manifest["complete"] = final
-        with open(man_path, "w") as f:
-            json.dump(manifest, f, indent=1)
+        with lock:
+            manifest["regions"].sort(key=lambda e: e["id"])
+            manifest["updated"] = now()
+            manifest["complete"] = final
+            with open(man_path, "w") as f:
+                json.dump(manifest, f, indent=1)
         if r2:
             r2.put(man_path, man_key, "application/json", "no-cache")
 
-    done = 0
-    try:
-        for rec in regions:
-            rid = rec["id"]
-            key = f"{PREFIX}/{a.planet_version}/{rid}.pmtiles"
-            prev = earlier.get(rid)
-            if r2 and prev and prev.get("key") == key:
-                st = r2.stat(key)
-                if st and st.get("Size") == prev.get("bytes") and (st.get("Metadata") or {}).get("sha256") == prev["sha256"]:
-                    manifest["regions"].append(dict(prev, skipped=True))
-                    print(f"{rid}: already on the bucket with sha256 {prev['sha256'][:12]}; skipped", flush=True)
-                    continue
-            geo = json.loads(get(poly_base + rid + ".geojson"))
-            rings = pc.outline_rings(geo, rec.get("bbox"))
-            maxz = maxzoom_for(rec, a.maxzoom)
-            out = os.path.join(a.work, rid + ".pmtiles")
-            t0 = time.time()
-            facts = pc.cut_region(arc, rings, out, 0, maxz, samples=a.samples)
+    def one(rec):
+        if stop.is_set():
+            return None
+        rid = rec["id"]
+        key = f"{PREFIX}/{a.planet_version}/{rid}.pmtiles"
+        prev = earlier.get(rid)
+        if r2 and prev and prev.get("key") == key:
+            st = r2.stat(key)
+            if st and st.get("Size") == prev.get("bytes") and (st.get("Metadata") or {}).get("sha256") == prev["sha256"]:
+                print(f"{rid}: already on the bucket with sha256 {prev['sha256'][:12]}; skipped", flush=True)
+                return dict(prev, skipped=True)
+        t0 = time.time()
+        geo = json.loads(get(poly_base + rid + ".geojson"))
+        rings = pc.outline_rings(geo, rec.get("bbox"))
+        maxz = maxzoom_for(rec, a.maxzoom)
+        out = os.path.join(a.work, rid + ".pmtiles")
+        facts = pc.cut_region(arc, rings, out, 0, maxz, samples=a.samples, disk=disk)
+        try:
             if r2:
                 r2.put(out, key, "application/vnd.pmtiles", CACHE, sha256=facts["sha256"])
                 st = r2.stat(key)
                 if not st or st.get("Size") != facts["bytes"] or (st.get("Metadata") or {}).get("sha256") != facts["sha256"]:
                     raise pc.CutError(f"{rid}: the uploaded object does not have the file's size and sha256")
-            os.remove(out)
-            entry = {"id": rid, "key": key, "bytes": facts["bytes"], "sha256": facts["sha256"], "tiles": facts["tiles"],
-                     "seconds": round(time.time() - t0, 2), "minzoom": 0, "maxzoom": maxz, "bounds": facts["bounds"],
-                     "cover_tiles": facts["cover_tiles"], "sampled": facts["verified"]["sampled"], "uploaded": bool(r2)}
-            manifest["regions"].append(entry)
-            done += 1
-            print(json.dumps(entry), flush=True)
-            if done % 10 == 0:
-                save()
-    except Exception:
-        try:
-            save()
         finally:
-            print(f"stopped after {done} regions; manifest so far in {man_path}", flush=True)
-        raise
+            if os.path.exists(out):
+                os.remove(out)
+            disk.release(facts["bytes"])
+        return {"id": rid, "key": key, "bytes": facts["bytes"], "sha256": facts["sha256"], "tiles": facts["tiles"],
+                "seconds": round(time.time() - t0, 2), "stages": facts["seconds"], "requests": facts["requests"],
+                "minzoom": 0, "maxzoom": maxz, "bounds": facts["bounds"], "cover_tiles": facts["cover_tiles"],
+                "sampled": facts["verified"]["sampled"], "uploaded": bool(r2)}
+
+    done, failure = 0, None
+    t_job = time.time()
+    with cf.ThreadPoolExecutor(max(1, a.parallel)) as ex:
+        futs = [ex.submit(one, r) for r in regions]
+        for f in cf.as_completed(futs):
+            try:
+                e = f.result()
+            except BaseException as err:     # stop taking new regions; the ones running finish and are recorded
+                if failure is None:
+                    failure = err
+                    stop.set()
+                    for x in futs:
+                        x.cancel()
+                    print(f"error: {err}", flush=True)
+                continue
+            if e is None:
+                continue
+            with lock:
+                manifest["regions"].append(e)
+            if not e.get("skipped"):
+                done += 1
+                print(json.dumps(e), flush=True)
+                if done % 10 == 0:
+                    save()
+    if failure is not None:
+        save()
+        print(f"stopped after {done} regions; manifest so far in {man_path}", flush=True)
+        raise failure
     save(final=True)
     total = sum(e["bytes"] for e in manifest["regions"])
-    print(f"group {a.group}: {len(manifest['regions'])} regions ({done} cut), {total} bytes; read {arc.src.fetched} bytes "
-          f"in {arc.src.requests} requests", flush=True)
+    took = time.time() - t_job
+    print(f"job {name}: {len(manifest['regions'])} regions ({done} cut), {total} bytes in {took / 60:.1f} min "
+          f"(estimated {est_s / 60:.0f}); read {arc.src.fetched} bytes in {arc.src.requests} requests, "
+          f"{arc.page_reads} directory pages", flush=True)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-            f.write(f"### {a.group}\n\n| region | bytes | tiles | seconds | sha256 |\n|---|---|---|---|---|\n")
+            f.write(f"### {name}\n\n{len(regions)} regions planned, estimated {est_s / 60:.0f} min, took {took / 60:.1f} min\n\n"
+                    "| region | bytes | tiles | seconds | requests (dir/tiles/verify) | sha256 |\n|---|---|---|---|---|---|\n")
             for e in manifest["regions"]:
-                f.write(f"| {e['id']} | {e['bytes']} | {e['tiles']} | {e['seconds']}{' (skipped)' if e.get('skipped') else ''} | {e['sha256'][:16]} |\n")
+                rq = e.get("requests") or {}
+                f.write(f"| {e['id']} | {e['bytes']} | {e['tiles']} | {e['seconds']}{' (skipped)' if e.get('skipped') else ''} | "
+                        f"{rq.get('directory', '')}/{rq.get('tiles', '')}/{rq.get('verify', '')} | {e['sha256'][:16]} |\n")
 
 
 def now():
@@ -301,9 +415,14 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("plan")
     p.add_argument("--selector", required=True)
+    p.add_argument("--maxzoom", default="15")
+    p.add_argument("--dry-run", action="store_true")
     r = sub.add_parser("run")
     r.add_argument("--selector", required=True)
     r.add_argument("--group", required=True)
+    r.add_argument("--part", type=int, default=1)
+    r.add_argument("--parts", type=int, default=1)
+    r.add_argument("--parallel", type=int, default=PARALLEL, help="regions cut at once (disk permitting)")
     r.add_argument("--planet-version", required=True)
     r.add_argument("--public-url", default=pub)
     r.add_argument("--shards-sha", default="")
@@ -316,11 +435,11 @@ def main():
         sys.exit("error: set R2_PUBLIC_URL or --regions-base")
     if not a.regions_base.endswith("/"):
         a.regions_base += "/"
+    if a.maxzoom != "catalogue" and not (a.maxzoom.isdigit() and 0 <= int(a.maxzoom) <= 15):
+        sys.exit("error: --maxzoom is 0 to 15 or 'catalogue'")
     if a.cmd == "run":
         if not a.public_url:
             sys.exit("error: set R2_PUBLIC_URL or --public-url")
-        if a.maxzoom != "catalogue" and not (a.maxzoom.isdigit() and 0 <= int(a.maxzoom) <= 15):
-            sys.exit("error: --maxzoom is 0 to 15 or 'catalogue'")
     {"plan": cmd_plan, "run": cmd_run}[a.cmd](a)
 
 

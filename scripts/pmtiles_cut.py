@@ -16,7 +16,7 @@ region's bounds, zooms and centre.
 
 Needs numpy. Nothing here installs anything or writes anywhere but the output path.
 """
-import argparse, bisect, concurrent.futures as cf, gzip, hashlib, json, math, os, random, shutil, struct, sys, threading, time
+import argparse, bisect, collections, concurrent.futures as cf, gzip, hashlib, json, math, os, random, shutil, struct, sys, threading, time
 import urllib.request
 
 import numpy as np
@@ -476,9 +476,11 @@ def serialize_dir(ids, run, ln, off):
 
 
 class Archive:
-    """A PMTiles source read by ranges: header, root, leaf pages (kept, compressed, for the life of the object)."""
+    """A PMTiles source read by ranges: header, root, and the leaf pages, each fetched once and kept parsed (least recently
+    used first out, at most `max_entries` directory entries, about 32 bytes each). One Archive serves a whole job, so the
+    regions after the first pay only for pages no earlier region needed. Safe to share between threads."""
 
-    def __init__(self, src):
+    def __init__(self, src, max_entries=8_000_000):
         self.src = src
         first = src.read(0, FIRST, exact=False)     # a file smaller than 16 KiB is fine
         self.header = h = parse_header(first)
@@ -487,7 +489,10 @@ class Archive:
         else:
             raw = src.read(h["root_offset"], h["root_len"])
         self.root = parse_dir(decompress(raw, h["internal_compression"]))
-        self._pages = {}
+        self._cache = collections.OrderedDict()
+        self._cached_entries = 0
+        self.max_entries = max_entries
+        self.page_reads = 0
         self._lock = threading.Lock()
         self._meta = None
 
@@ -501,23 +506,34 @@ class Archive:
         raw = self.metadata_raw()
         return json.loads(decompress(raw, self.header["internal_compression"])) if raw else {}
 
-    def page(self, off, ln):
+    def page(self, off, ln, stats=None):
         key = (off, ln)
         with self._lock:
-            raw = self._pages.get(key)
-        if raw is None:
-            raw = self.src.read(self.header["leaf_offset"] + off, ln)
-            with self._lock:
-                self._pages[key] = raw
-        return parse_dir(decompress(raw, self.header["internal_compression"]))
+            d = self._cache.get(key)
+            if d is not None:
+                self._cache.move_to_end(key)
+                return d
+        d = parse_dir(decompress(self.src.read(self.header["leaf_offset"] + off, ln), self.header["internal_compression"]))
+        with self._lock:
+            self.page_reads += 1
+            if stats is not None:
+                stats["dir"] = stats.get("dir", 0) + 1
+            if key not in self._cache:
+                self._cache[key] = d
+                self._cached_entries += len(d[0])
+                while self._cached_entries > self.max_entries and len(self._cache) > 1:
+                    _, old = self._cache.popitem(last=False)
+                    self._cached_entries -= len(old[0])
+        return d
 
-    def prefetch(self, keys):
-        todo = [k for k in set(keys) if k not in self._pages]
+    def prefetch(self, keys, stats=None):
+        with self._lock:
+            todo = [k for k in set(keys) if k not in self._cache]
         if len(todo) > 1:
             with cf.ThreadPoolExecutor(WORKERS) as ex:
-                list(ex.map(lambda k: self.page(*k), todo))
+                list(ex.map(lambda k: self.page(*k, stats=stats), todo))
 
-    def lookup(self, tid):
+    def lookup(self, tid, stats=None):
         """(offset in tile data, length) of one tile, or None: pmtiles.rs find/lookup, one id at a time."""
         ids, run, ln, off = self.root
         for _ in range(4):
@@ -526,25 +542,25 @@ class Archive:
                 return None
             i -= 1
             if run[i] == 0:
-                ids, run, ln, off = self.page(int(off[i]), int(ln[i]))
+                ids, run, ln, off = self.page(int(off[i]), int(ln[i]), stats)
                 continue
             return (int(off[i]), int(ln[i])) if tid < ids[i] + run[i] else None
         raise CutError("PMTiles directories nest too deep")
 
-    def collect(self, ranges):
+    def collect(self, ranges, stats=None):
         """Every stored tile inside the half-open id ranges, as rows (first id, count, data offset, length), sorted.
         Runs are kept as runs; a run cut by a range edge is cut too."""
         if not ranges:
             return np.zeros((0, 4), dtype=np.int64)
         A = np.array([a for a, _ in ranges], dtype=np.int64)
         B = np.array([b for _, b in ranges], dtype=np.int64)
-        rows = self._collect(self.root, A, B, 1 << 62, 0)
+        rows = self._collect(self.root, A, B, 1 << 62, 0, stats)
         if not rows:
             return np.zeros((0, 4), dtype=np.int64)
         r = np.concatenate(rows)
         return r[np.argsort(r[:, 0], kind="stable")]
 
-    def _collect(self, d, A, B, upper, depth):
+    def _collect(self, d, A, B, upper, depth, stats):
         if depth > 3:
             raise CutError("PMTiles directories nest too deep")
         ids, run, ln, off = d
@@ -574,16 +590,76 @@ class Archive:
             t = np.minimum(hi, b[leaf])
             k = t > s
             e, s, t, hi = e[k], s[k], t[k], hi[k]
-            self.prefetch([(int(off[j]), int(ln[j])) for j in np.unique(e)])
+            self.prefetch([(int(off[j]), int(ln[j])) for j in np.unique(e)], stats)
             order = np.argsort(e, kind="stable")
             e, s, t, hi = e[order], s[order], t[order], hi[order]
             bounds = np.flatnonzero(np.r_[True, e[1:] != e[:-1], True])
             for g in range(len(bounds) - 1):
                 p, q = bounds[g], bounds[g + 1]
                 j = int(e[p])
-                sub = self.page(int(off[j]), int(ln[j]))
-                out += self._collect(sub, s[p:q], t[p:q], int(hi[p]), depth + 1)
+                sub = self.page(int(off[j]), int(ln[j]), stats)
+                out += self._collect(sub, s[p:q], t[p:q], int(hi[p]), depth + 1, stats)
         return out
+
+
+# ---------------------------------------------------------------- reads and disk
+
+def merge_reads(offs, lens):
+    """Groups of nearby source ranges (offs sorted): [(first index, end index, start, length)], gaps of at most GAP, groups
+    of at most GROUP bytes (a single longer range is its own group)."""
+    groups, i, N = [], 0, len(offs)
+    while i < N:
+        j, end = i, int(offs[i] + lens[i])
+        while j + 1 < N and offs[j + 1] - end <= GAP and offs[j + 1] + lens[j + 1] - offs[i] <= GROUP:
+            j += 1
+            end = max(end, int(offs[j] + lens[j]))
+        groups.append((i, j + 1, int(offs[i]), end - int(offs[i])))
+        i = j + 1
+    return groups
+
+
+def read_groups(arc, offs, lens, each):
+    """Reads tile bytes at source offsets `offs` (sorted, relative to the tile data) in merged ranges, in parallel, and calls
+    each(k, bytes) for every range k. Returns (requests, bytes read)."""
+    groups = merge_reads(offs, lens)
+
+    def job(g):
+        a, b, start, length = g
+        buf = arc.src.read(arc.header["data_offset"] + start, length)
+        for k in range(a, b):
+            p = int(offs[k]) - start
+            piece = buf[p:p + int(lens[k])]
+            if len(piece) != int(lens[k]):
+                raise CutError("short tile read")
+            each(k, piece)
+        return length
+    if len(groups) == 1:
+        return 1, job(groups[0])
+    with cf.ThreadPoolExecutor(WORKERS) as ex:
+        return len(groups), sum(ex.map(job, groups))
+
+
+class DiskBudget:
+    """Space for the files a job has on disk at once. Capacity is the free space when the job starts, less a margin; a cut
+    waits while others hold the space it needs, and fails at once when it could never fit."""
+
+    def __init__(self, path, margin=2 << 30, capacity=None):
+        self.capacity = capacity if capacity is not None else shutil.disk_usage(path).free - margin
+        self.held = 0
+        self._cv = threading.Condition()
+
+    def reserve(self, n):
+        with self._cv:
+            if n > self.capacity:
+                raise CutError(f"{n} bytes to write and only {self.capacity} usable on this disk")
+            while self.held + n > self.capacity:
+                self._cv.wait()
+            self.held += n
+
+    def release(self, n):
+        with self._cv:
+            self.held -= n
+            self._cv.notify_all()
 
 
 # ---------------------------------------------------------------- writer
@@ -639,8 +715,9 @@ def center_of(bounds, maxz):
     return [(w + e) / 2, (s + n) / 2], int(min(maxz, max(0, math.floor(math.log2(360.0 / width)))))
 
 
-def write_pmtiles(arc, rows, path, minz, maxz, bounds, root_max=FIRST - HEADER_LEN, free_margin=1 << 30, leaf_size=4096):
-    """Writes the cut. Returns facts about it. Fails before writing when the disk cannot hold it."""
+def write_pmtiles(arc, rows, path, minz, maxz, bounds, root_max=FIRST - HEADER_LEN, free_margin=1 << 30, leaf_size=4096, disk=None):
+    """Writes the cut. Returns facts about it. Fails before writing when the disk cannot hold it. With a DiskBudget the
+    file's bytes are reserved in it; the caller releases them once the file is gone (here on failure)."""
     entries, copies = plan_layout(rows)
     ids, run, ln, off = entries
     sh = arc.header
@@ -653,10 +730,32 @@ def write_pmtiles(arc, rows, path, minz, maxz, bounds, root_max=FIRST - HEADER_L
     so, clen, cdst = copies
     data_len = int(clen.sum())
     total = data_off + data_len
-    d = os.path.dirname(os.path.abspath(path))
-    free = shutil.disk_usage(d).free
-    if total + free_margin > free:
-        raise CutError(f"{total} bytes to write and {free} free on {d}")
+    if disk is not None:
+        disk.reserve(total)
+    else:
+        d = os.path.dirname(os.path.abspath(path))
+        free = shutil.disk_usage(d).free
+        if total + free_margin > free:
+            raise CutError(f"{total} bytes to write and {free} free on {d}")
+    try:
+        return _write(arc, path, h_args=(root, meta, leaves, total, data_off), entries=entries, copies=copies, sh=sh,
+                      minz=minz, maxz=maxz, bounds=bounds, data_len=data_len)
+    except BaseException:
+        for q in (path + ".part", path):
+            if os.path.exists(q):
+                os.remove(q)
+        if disk is not None:
+            disk.release(total)
+        raise
+
+
+def _write(arc, path, h_args, entries, copies, sh, minz, maxz, bounds, data_len):
+    root, meta, leaves, total, data_off = h_args
+    ids, run, ln, off = entries
+    so, clen, cdst = copies
+    root_off = HEADER_LEN
+    meta_off = root_off + len(root)
+    leaf_off = meta_off + len(meta)
     center, cz = center_of(bounds, maxz)
     h = {"root_offset": root_off, "root_len": len(root), "meta_offset": meta_off, "meta_len": len(meta),
          "leaf_offset": leaf_off, "leaf_len": len(leaves), "data_offset": data_off, "data_len": data_len,
@@ -675,34 +774,15 @@ def write_pmtiles(arc, rows, path, minz, maxz, bounds, root_max=FIRST - HEADER_L
     # copy the tile bytes: merge nearby source ranges, read in parallel, write each content at its place
     srt = np.argsort(so, kind="stable")
     s_off, s_len, s_dst = so[srt], clen[srt], cdst[srt] + data_off
-    groups, i, N = [], 0, len(s_off)
-    while i < N:
-        j, end = i, int(s_off[i] + s_len[i])
-        while j + 1 < N and s_off[j + 1] - end <= GAP and s_off[j + 1] + s_len[j + 1] - s_off[i] <= GROUP:
-            j += 1
-            end = max(end, int(s_off[j] + s_len[j]))
-        groups.append((i, j + 1, int(s_off[i]), end - int(s_off[i])))
-        i = j + 1
     fd = os.open(tmp, os.O_WRONLY)
     try:
-        def job(g):
-            a, b, start, length = g
-            buf = arc.src.read(sh["data_offset"] + start, length)
-            for k in range(a, b):
-                p = int(s_off[k]) - start
-                piece = buf[p:p + int(s_len[k])]
-                if len(piece) != int(s_len[k]):
-                    raise CutError("short tile read")
-                os.pwrite(fd, piece, int(s_dst[k]))
-            return length
-        with cf.ThreadPoolExecutor(WORKERS) as ex:
-            fetched = sum(ex.map(job, groups))
+        reads, fetched = read_groups(arc, s_off, s_len, lambda k, piece: os.pwrite(fd, piece, int(s_dst[k])))
         os.fsync(fd)
     finally:
         os.close(fd)
     os.replace(tmp, path)
     return {"bytes": total, "tiles": h["addressed_tiles"], "entries": h["tile_entries"], "contents": h["tile_contents"],
-            "data_bytes": data_len, "read_bytes": fetched, "reads": len(groups)}
+            "data_bytes": data_len, "read_bytes": fetched, "reads": reads}
 
 
 def sha256_file(path):
@@ -748,10 +828,11 @@ def read_entries(path):
     return h, np.array(rows, dtype=np.int64).reshape(-1, 4), meta_raw
 
 
-def verify(path, arc, expect_rows, minz, maxz, samples=64, seed=None):
+def verify(path, arc, expect_rows, minz, maxz, samples=64, seed=None, stats=None):
     """Re-reads a written cut and checks it: header and layout, that its tiles are exactly the collected ones, that the
-    metadata is the source's, and `samples` random tiles byte-equal to the source (looked up there one by one; "all" checks
-    every tile). Raises CutError on the first failure; returns what was checked."""
+    metadata is the source's, and `samples` random tiles byte-equal to the source ("all" checks every tile). The sampled
+    tiles are looked up in the source's directory one by one (through the archive's page cache) and their source bytes
+    read in merged ranges. Raises CutError on the first failure; returns what was checked."""
     h, rows, meta_raw = read_entries(path)
     if h["min_zoom"] != minz or h["max_zoom"] != maxz:
         raise CutError("zooms in the header are not the ones cut")
@@ -785,42 +866,64 @@ def verify(path, arc, expect_rows, minz, maxz, samples=64, seed=None):
     picks = range(total) if samples == "all" else sorted(rng.randrange(total) for _ in range(min(int(samples), total))) if total else []
     cum = np.cumsum(run)
     bad = 0
+    want = {}                         # source offset -> [length, my bytes, ...]
     with open(path, "rb") as f:
         for k in picks:
             i = int(np.searchsorted(cum, k, side="right"))
             tid = int(ids[i] + (k - (cum[i] - run[i])))
             f.seek(h["data_offset"] + int(off[i]))
             mine = f.read(int(ln[i]))
-            loc = arc.lookup(tid)
-            if loc is None or loc[1] != len(mine) or arc.src.read(arc.header["data_offset"] + loc[0], loc[1]) != mine:
+            loc = arc.lookup(tid, stats)
+            if loc is None or loc[1] != len(mine):
                 bad += 1
+                continue
+            want.setdefault(loc[0], [loc[1]]).append(mine)
+    reads = 0
+    if want:
+        so = np.array(sorted(want), dtype=np.int64)
+        sl = np.array([want[o][0] for o in so.tolist()], dtype=np.int64)
+        got = {}
+        reads, _ = read_groups(arc, so, sl, lambda k, piece: got.__setitem__(int(so[k]), piece))
+        for o, v in want.items():
+            bad += sum(1 for m in v[1:] if m != got.get(o))
     if bad:
         raise CutError(f"{bad} of {len(picks)} sampled tiles differ from the source")
-    return {"tiles": total, "entries": len(rows), "contents": int(len(uo)), "sampled": len(picks)}
+    return {"tiles": total, "entries": len(rows), "contents": int(len(uo)), "sampled": len(picks), "reads": reads}
 
 
 # ---------------------------------------------------------------- one region
 
-def cut_region(arc, rings, out_path, minz=0, maxz=15, samples=64, root_max=FIRST - HEADER_LEN):
+def cut_region(arc, rings, out_path, minz=0, maxz=15, samples=64, root_max=FIRST - HEADER_LEN, disk=None):
+    """Cut and verify one region. With a DiskBudget, the file's bytes stay reserved until the caller releases them
+    (facts["bytes"]) after deleting the file; on failure the file is removed and the bytes released here."""
     t0 = time.time()
+    stats = {}
     box = rings_bounds(rings)
     o = Outline(rings)
     ranges = o.cover(minz, maxz, box)
     cover_tiles_n = sum(b - a for a, b in ranges)
     t1 = time.time()
-    rows = arc.collect(ranges)
+    rows = arc.collect(ranges, stats)
     if len(rows) == 0:
         raise CutError("the source has no tiles in this outline")
     t2 = time.time()
-    facts = write_pmtiles(arc, rows, out_path, minz, maxz, box, root_max=root_max)
-    t3 = time.time()
-    checked = verify(out_path, arc, rows, minz, maxz, samples=samples)
-    facts.update(sha256=sha256_file(out_path), cover_tiles=cover_tiles_n, cover_ranges=len(ranges), verified=checked,
-                 seconds={"cover": round(t1 - t0, 2), "directory": round(t2 - t1, 2), "write": round(t3 - t2, 2),
-                          "verify": round(time.time() - t3, 2), "total": round(time.time() - t0, 2)},
-                 bounds=list(box), minzoom=minz, maxzoom=maxz)
-    if facts["bytes"] != os.path.getsize(out_path):
-        raise CutError("file size differs from the plan")
+    facts = write_pmtiles(arc, rows, out_path, minz, maxz, box, root_max=root_max, disk=disk)
+    try:
+        t3 = time.time()
+        checked = verify(out_path, arc, rows, minz, maxz, samples=samples, stats=stats)
+        facts.update(sha256=sha256_file(out_path), cover_tiles=cover_tiles_n, cover_ranges=len(ranges), verified=checked,
+                     seconds={"cover": round(t1 - t0, 2), "directory": round(t2 - t1, 2), "write": round(t3 - t2, 2),
+                              "verify": round(time.time() - t3, 2), "total": round(time.time() - t0, 2)},
+                     requests={"directory": stats.get("dir", 0), "tiles": facts["reads"], "verify": checked["reads"]},
+                     bounds=list(box), minzoom=minz, maxzoom=maxz)
+        if facts["bytes"] != os.path.getsize(out_path):
+            raise CutError("file size differs from the plan")
+    except BaseException:
+        if os.path.exists(out_path):
+            os.remove(out_path)
+        if disk is not None:
+            disk.release(facts["bytes"])
+        raise
     return facts
 
 

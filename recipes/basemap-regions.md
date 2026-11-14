@@ -21,7 +21,10 @@ Workflow: `.github/workflows/basemap-regions.yml` (by hand only). Code: `scripts
 Inputs: `planet_version` (the date of a planet already in R2), `regions` (`ids:a,b,c`, `state:us-id,us-ut`, `country:us` or `na` for us, ca, mx, gl), `dry_run` (default on), `maxzoom` (`15`, or `catalogue` for the zoom the region list sizes each region at).
 
 - `plan` runs the tests, reads the shards, and makes one job per state or province (`us-id`, `ca-bc`); regions in no single state (the country, metro areas across a state line, multi-state regions) go to `<country>-other`. North America is about 17,900 regions in 105 jobs. At most 8 jobs run at once.
-- Each job, region by region: cut, verify, upload, delete the local file. Verify re-reads the written file on its own: header and layout, counts, that its tiles are exactly the cover's, that the metadata is the planet's, and 64 random tiles byte-equal to the planet (looked up there one by one). Any failure fails the job.
+- The plan prints each job's region count, estimated GB and minutes, and splits a group whose estimate is over 4 hours into parts (`us-tx-part1-of2`, ...; largest regions first, each to the least loaded part). The estimate uses the region list's map sizes (box, scaled 2.7x per zoom for regions it sizes below z15), 2.5 s fixed per region (plus 3 s when uploading), 40 MB/s reads and 40 MB/s uploads per job, 4 regions at once. For North America at z15 with upload that is about 262 GB (an overestimate: boxes, not outlines), 10.5 job-hours, the longest job (`us-other`, 958 regions including the country) about 77 min, so about 1.5 to 2 hours in all at 8 jobs at once.
+- One planet directory cache per job: the header and root once, each leaf page fetched once and kept parsed (at most 8 million entries, about 256 MB, least recently used out). A region after the first costs its own merged tile reads plus its merged verify reads; the manifest records the counts per region (`requests`: directory, tiles, verify) and the time per stage.
+- Each job cuts 4 regions at once; the files on disk at once are bounded by the free space when the job started (less 2 GB), and a cut waits for space rather than overfilling the disk.
+- Per region: cut, verify, upload, delete the local file. Verify re-reads the written file on its own: header and layout, counts, that its tiles are exactly the cover's, that the metadata is the planet's, and 64 random tiles byte-equal to the planet (each looked up in the planet's directory, their bytes read in merged ranges). Any failure fails the job.
 - A dry run cuts and verifies but gets no R2 keys and uploads nothing; its manifests are kept as workflow artifacts.
 
 ## On the bucket
@@ -29,7 +32,7 @@ Inputs: `planet_version` (the date of a planet already in R2), `regions` (`ids:a
 Only these keys are written, and nothing is deleted:
 
 - `basemap-regions/<planet version>/<region id>.pmtiles` (Content-Type `application/vnd.pmtiles`, object metadata `sha256`)
-- `basemap-regions/<planet version>/manifests/<job>.json`: per region `id`, `key`, `bytes`, `sha256`, `tiles`, `seconds`, `minzoom`, `maxzoom`, `bounds`; `complete` is true when the job finished. Written every 10 regions and at the end.
+- `basemap-regions/<planet version>/manifests/<job>.json` (`<group>` or `<group>-part<i>-of<n>`): per region `id`, `key`, `bytes`, `sha256`, `tiles`, `seconds`, `minzoom`, `maxzoom`, `bounds`; `complete` is true when the job finished. Written every 10 regions and at the end.
 
 Resume: a region that an earlier manifest lists, whose object has that manifest's size and SHA-256, is skipped. Re-running a failed job carries on where it stopped.
 
