@@ -115,10 +115,85 @@ def select(base, selector):
 
 
 def maxzoom_for(rec, mode):
-    if mode == "catalogue":
-        z = (((rec.get("sizes") or {}).get("map") or {}).get("basemap") or [None, None])[1]
-        return int(z) if isinstance(z, int) and 0 <= z <= 15 else 15
     return int(mode)
+
+
+# The app uses a region's file only when the region's map goes to the layer's top zoom, z15 (precut.rs from_file). Its zoom
+# is the region list's sizes.map.basemap zoom: the top first, then down at most five steps, the first that fits 800 MiB and
+# the layer's limits (core_layer_engine.dart _stepDown; regions/region_sizes.py). Regions it steps down are not cut.
+TOP_ZOOM = 15
+MAX_DOWNLOAD_BYTES = 800 * 1024 * 1024        # core_layer_engine.dart maxDownloadBytes
+MAX_ENUMERATED = 6_000_000                    # download.rs: above this many tiles the app gives up on the layer
+
+
+def app_box(rec):
+    """The box the app sizes and downloads a region's map for (RegionRecord.bounds: a box across the antimeridian is cut to
+    its larger side)."""
+    w, s_, e, n = rec["bbox"]
+    if w > e:
+        if e + 180 >= 180 - w:
+            w = -180.0
+        else:
+            e = 180.0
+    return (w, s_, e, n)
+
+
+def box_tiles(rec, zmax=TOP_ZOOM):
+    total = 0
+    for z in range(zmax + 1):
+        x0, x1, y0, y1 = pc.tile_range(app_box(rec), z)
+        total += (x1 - x0 + 1) * (y1 - y0 + 1)
+    return total
+
+
+def skip_reason(rec):
+    """Why the app would never use this region's file (so it is not cut), or None. Regions the list has no sizes for at all
+    are checked here by tile count; their bytes are checked when the job runs (app_bytes_reason)."""
+    sizes = rec.get("sizes")
+    if sizes is None:
+        if not rec.get("bbox"):
+            return "no box to size it by"
+        if box_tiles(rec) > MAX_ENUMERATED:
+            return f"its box is over {MAX_ENUMERATED} tiles to z{TOP_ZOOM}; the app steps it down"
+        return None
+    b = (sizes.get("map") or {}).get("basemap")
+    if not b:
+        return "the region list gives no base map download for it at any zoom"
+    if b[1] < TOP_ZOOM:
+        return f"the app steps it down to z{b[1]}; it uses a file only at z{TOP_ZOOM}"
+    return None
+
+
+def app_bytes_reason(arc, rec):
+    """For a region the list has no sizes for: the bytes of its box at z0..z15 against the app's 800 MiB."""
+    b = app_box(rec)
+    ranges = []
+    for z in range(TOP_ZOOM + 1):
+        x0, x1, y0, y1 = pc.tile_range(b, z)
+        for x in range(x0, x1 + 1):
+            for y in range(y0, y1 + 1):
+                t = pc.zxy_to_id(z, x, y)
+                ranges.append((t, t + 1))
+    rows = arc.collect(pc.merge_ranges(ranges))
+    if len(rows):
+        import numpy as np
+        _, first = np.unique(rows[:, 2], return_index=True)
+        total = int(rows[first, 3].sum())
+        if total > MAX_DOWNLOAD_BYTES:
+            return f"its box is {total} bytes to z{TOP_ZOOM}, over the app's {MAX_DOWNLOAD_BYTES}; the app steps it down"
+    return None
+
+
+def split_skips(picked):
+    """(to cut, [(group, record, reason)] skipped)."""
+    cut, skipped = [], []
+    for g, r in picked:
+        why = skip_reason(r)
+        if why:
+            skipped.append((g, r, why))
+        else:
+            cut.append((g, r))
+    return cut, skipped
 
 
 # ---------------------------------------------------------------- R2 (rclone, configured from the environment)
@@ -266,13 +341,19 @@ def job_name(g, part, parts):
 
 def cmd_plan(a):
     picked, sha = select(a.regions_base, a.selector)
+    picked, skipped = split_skips(picked)
+    print(f"{len(skipped)} regions not cut (the app would not use their file):")
+    for g, r, why in skipped:
+        print(f"  skip {r['id']}: {why}")
+    if not picked:
+        raise pc.CutError("every selected region is skipped; nothing to cut")
     jobs = jobs_for(picked, a.maxzoom, a.dry_run)
     if len(jobs) > MAX_JOBS:
         raise pc.CutError(f"{len(jobs)} jobs is above GitHub's matrix limit of {MAX_JOBS}; select less")
     matrix = {"include": [{"group": g, "part": p, "parts": n, "regions": len(rs), "est_minutes": round(s / 60)}
                           for g, p, n, rs, s, _ in jobs]}
     wall = sum(s for *_, s, _ in jobs)
-    print(f"{len(picked)} regions in {len(jobs)} jobs ({'dry run' if a.dry_run else 'with upload'}, maxzoom {a.maxzoom}); "
+    print(f"{len(picked)} regions to cut ({len(skipped)} skipped) in {len(jobs)} jobs ({'dry run' if a.dry_run else 'with upload'}, maxzoom {a.maxzoom}); "
           f"estimated {sum(b for *_, b in jobs) / 1e9:.1f} GB, {wall / 3600:.1f} job-hours, "
           f"about {wall / 3600 / 8:.1f} h at 8 jobs at once (the longest job sets a floor of {max(s for *_, s, _ in jobs) / 3600:.1f} h)")
     print(f"shards sha256 {sha}")
@@ -291,6 +372,7 @@ def cmd_run(a):
     picked, sha = select(a.regions_base, a.selector)
     if a.shards_sha and sha != a.shards_sha:
         raise pc.CutError("the region lists changed since the plan; run the workflow again")
+    picked, skipped = split_skips(picked)
     mine = [j for j in jobs_for(picked, a.maxzoom, a.dry_run) if j[0] == a.group]
     if not mine:
         raise pc.CutError(f"no region of the selector is in group {a.group}")
@@ -314,13 +396,17 @@ def cmd_run(a):
     manifest = {"format": 1, "prefix": f"{PREFIX}/{a.planet_version}/", "planet": planet, "planet_version": a.planet_version,
                 "group": a.group, "part": a.part, "parts": a.parts, "selector": a.selector, "shards_sha256": sha,
                 "dry_run": bool(a.dry_run), "maxzoom_mode": a.maxzoom, "planned_regions": len(regions),
-                "estimate_minutes": round(est_s / 60), "started": now(), "regions": []}
+                "estimate_minutes": round(est_s / 60), "started": now(), "regions": [],
+                "not_cut": [{"id": r["id"], "reason": why} for g, r, why in skipped if g == a.group] if a.part == 1 else []}
+    for e in manifest["not_cut"]:
+        print(f"{e['id']}: not cut: {e['reason']}", flush=True)
     lock = threading.Lock()
     stop = threading.Event()
 
     def save(final=False):
         with lock:
             manifest["regions"].sort(key=lambda e: e["id"])
+            manifest["not_cut"].sort(key=lambda e: e["id"])
             manifest["updated"] = now()
             manifest["complete"] = final
             with open(man_path, "w") as f:
@@ -339,6 +425,11 @@ def cmd_run(a):
             if st and st.get("Size") == prev.get("bytes") and (st.get("Metadata") or {}).get("sha256") == prev["sha256"]:
                 print(f"{rid}: already on the bucket with sha256 {prev['sha256'][:12]}; skipped", flush=True)
                 return dict(prev, skipped=True)
+        if rec.get("sizes") is None:
+            why = app_bytes_reason(arc, rec)
+            if why:
+                print(f"{rid}: not cut: {why}", flush=True)
+                return {"id": rid, "not_cut": why}
         t0 = time.time()
         geo = json.loads(get(poly_base + rid + ".geojson"))
         rings = pc.outline_rings(geo, rec.get("bbox"))
@@ -376,6 +467,10 @@ def cmd_run(a):
                     print(f"error: {err}", flush=True)
                 continue
             if e is None:
+                continue
+            if "not_cut" in e:
+                with lock:
+                    manifest["not_cut"].append({"id": e["id"], "reason": e["not_cut"]})
                 continue
             with lock:
                 manifest["regions"].append(e)
@@ -428,15 +523,15 @@ def main():
     r.add_argument("--shards-sha", default="")
     r.add_argument("--work", default="work")
     r.add_argument("--samples", type=int, default=64)
-    r.add_argument("--maxzoom", default="15", help="15 (or another zoom) for every region, or 'catalogue' for the zoom the region list sizes the base map at")
+    r.add_argument("--maxzoom", default="15", help="top zoom cut (15; lower only for tests)")
     r.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     if not a.regions_base:
         sys.exit("error: set R2_PUBLIC_URL or --regions-base")
     if not a.regions_base.endswith("/"):
         a.regions_base += "/"
-    if a.maxzoom != "catalogue" and not (a.maxzoom.isdigit() and 0 <= int(a.maxzoom) <= 15):
-        sys.exit("error: --maxzoom is 0 to 15 or 'catalogue'")
+    if not (a.maxzoom.isdigit() and 0 <= int(a.maxzoom) <= 15):
+        sys.exit("error: --maxzoom is 0 to 15")
     if a.cmd == "run":
         if not a.public_url:
             sys.exit("error: set R2_PUBLIC_URL or --public-url")

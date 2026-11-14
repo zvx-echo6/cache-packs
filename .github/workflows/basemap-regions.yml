@@ -17,7 +17,7 @@ on:
         type: boolean
         default: true
       maxzoom:
-        description: "Highest zoom: 15 for every region, or 'catalogue' for the zoom the region list sizes each region at"
+        description: "Highest zoom cut (15; the app uses a file only at z15, so lower is for tests)"
         default: "15"
 
 permissions:
