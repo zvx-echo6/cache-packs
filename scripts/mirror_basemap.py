@@ -123,9 +123,7 @@ def finalize():
                   "kind": "vector", "transform": "as_is", "layout": "protomaps-v4",
                   "source": {"type": "pmtiles", "url": f"{base}/{key}", "minzoom": 0, "maxzoom": 15, "tile_format": "mvt"},
                   "attribution": "© OpenStreetMap contributors · Protomaps",
-                  "license": "ODbL 1.0 Produced Work (OpenStreetMap data); Protomaps basemap tiles; "
-                             "© ESA WorldCover project 2020 / Contains modified Copernicus Sentinel data (2020) processed by ESA WorldCover consortium. CC BY 4.0. "
-                             "Data from the Daylight Map Distribution",
+                  "license": "ODbL 1.0 Produced Work (OpenStreetMap data); Protomaps basemap tiles",
                   "coverage": {"bbox": [-180, -85.0511, 180, 85.0511]}, "offline": {"allowed": True, "limit": None}, "style_hints": {"role": "basemap"},
                   "update": {"version": date, "interval_days": 30},
                   "recipe": "https://github.com/zvx-echo6/cache-packs/blob/main/recipes/basemap-planet.md"}
