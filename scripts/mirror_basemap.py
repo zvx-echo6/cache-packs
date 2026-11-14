@@ -118,12 +118,14 @@ def finalize():
                 "license": "ODbL 1.0 Produced Work (data (c) OpenStreetMap contributors)",
                 "attribution": "(c) OpenStreetMap contributors", "protomaps_build_version": b["version"],
                 "build_uploaded": b["uploaded"], "mirrored": now}
-    definition = {"format": 1, "id": "basemap", "title": "Base map (Protomaps, planet)",
+    definition = {"format": 1, "id": "basemap", "title": "Base map",
                   "description": "Worldwide vector base map, Protomaps v4 layout, from OpenStreetMap.",
                   "kind": "vector", "transform": "as_is", "layout": "protomaps-v4",
                   "source": {"type": "pmtiles", "url": f"{base}/{key}", "minzoom": 0, "maxzoom": 15, "tile_format": "mvt"},
-                  "attribution": "(c) OpenStreetMap contributors",
-                  "license": "ODbL 1.0 Produced Work (OpenStreetMap data); Protomaps basemap tiles",
+                  "attribution": "© OpenStreetMap contributors · Protomaps",
+                  "license": "ODbL 1.0 Produced Work (OpenStreetMap data); Protomaps basemap tiles; "
+                             "© ESA WorldCover project 2020 / Contains modified Copernicus Sentinel data (2020) processed by ESA WorldCover consortium. CC BY 4.0. "
+                             "Data from the Daylight Map Distribution",
                   "coverage": {"bbox": [-180, -85.0511, 180, 85.0511]}, "offline": {"allowed": True, "limit": None}, "style_hints": {"role": "basemap"},
                   "update": {"version": date, "interval_days": 30},
                   "recipe": "https://github.com/zvx-echo6/cache-packs/blob/main/recipes/basemap-planet.md"}
