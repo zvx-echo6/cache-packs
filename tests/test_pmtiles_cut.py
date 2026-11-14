@@ -374,3 +374,50 @@ def test_verify_catches_missing_or_extra_tiles(planet, tmp_path):
         pc.verify(out, arc, rows[1:], 0, 7)
     with pytest.raises(pc.CutError, match="zooms"):
         pc.verify(out, arc, rows, 0, 8)
+
+
+# ---------------------------------------------------------------- per-region cost in a job
+
+def test_a_small_region_costs_its_tile_reads_plus_a_constant(planet, tmp_path, monkeypatch):
+    """One archive per job: once its directory pages are cached, a region's requests are its own merged tile reads plus
+    its merged verify reads; verify no longer makes one request per sampled tile."""
+    monkeypatch.setattr(pc, "GAP", 0)                 # no merging across gaps, so the fixture's reads are not all one
+    src, _ = planet
+    fs = pc.FileSource(src)
+    arc = pc.Archive(fs)
+    a = [(-114.3, 42.6), (-114.0, 42.6), (-114.15, 42.8)]
+    b = [(-113.9, 42.6), (-113.6, 42.6), (-113.75, 42.8)]           # a neighbour
+    first = pc.cut_region(arc, [a], str(tmp_path / "a.pmtiles"), 0, 7, samples="all")
+    assert first["requests"]["directory"] > 0
+    for ring, name in ((a, "a2"), (b, "b")):
+        before = fs.requests
+        f = pc.cut_region(arc, [ring], str(tmp_path / f"{name}.pmtiles"), 0, 7, samples="all")
+        rq = f["requests"]
+        assert fs.requests - before == rq["directory"] + rq["tiles"] + rq["verify"]     # nothing else is read
+        assert rq["directory"] <= 8                                   # at most a page per zoom that a neighbour did not need
+        assert rq["verify"] <= rq["tiles"] < f["verified"]["sampled"]   # merged, not one per tile
+    assert pc.cut_region(arc, [a], str(tmp_path / "a3.pmtiles"), 0, 7, samples="all")["requests"]["directory"] == 0
+
+
+def test_the_page_cache_is_bounded(planet):
+    src, _ = planet
+    arc = pc.Archive(pc.FileSource(src), max_entries=120)
+    rings = [SHAPES[1]]
+    arc.collect(pc.Outline(rings).cover(0, 7, pc.rings_bounds(rings)))
+    assert arc._cached_entries <= 120 and len(arc._cache) >= 1
+
+
+def test_disk_budget_waits_and_refuses():
+    import threading, time
+    d = pc.DiskBudget(".", capacity=100)
+    d.reserve(70)
+    got = []
+    t = threading.Thread(target=lambda: (d.reserve(50), got.append(1)))
+    t.start()
+    time.sleep(0.1)
+    assert not got                                    # waits while the space is held
+    d.release(70)
+    t.join(2)
+    assert got and d.held == 50
+    with pytest.raises(pc.CutError):
+        d.reserve(101)                                # could never fit

@@ -17,7 +17,7 @@ on:
         type: boolean
         default: true
       maxzoom:
-        description: "Highest zoom: 15 for every region, or 'catalogue' for the zoom the region list sizes each region at"
+        description: "Highest zoom cut (15; the app uses a file only at z15, so lower is for tests)"
         default: "15"
 
 permissions:
@@ -52,10 +52,12 @@ jobs:
         name: Plan
         run: |
           [[ "$PLANET_VERSION" =~ ^[0-9]{8}$ ]] || { echo "planet_version must be YYYYMMDD"; exit 1; }
-          "$RUNNER_TEMP/venv/bin/python" scripts/basemap_regions.py plan --selector "$SELECTOR"
+          DRY=(); [ "${{ inputs.dry_run }}" = "true" ] && DRY=(--dry-run)
+          "$RUNNER_TEMP/venv/bin/python" scripts/basemap_regions.py plan --selector "$SELECTOR" --maxzoom "$MAXZOOM" "${DRY[@]}"
 
   cut:
     needs: plan
+    name: cut ${{ matrix.group }} ${{ matrix.part }}/${{ matrix.parts }} (${{ matrix.regions }} regions, est ${{ matrix.est_minutes }} min)
     runs-on: ubuntu-24.04
     timeout-minutes: 355
     strategy:
@@ -69,6 +71,8 @@ jobs:
       R2_ENDPOINT: ${{ !inputs.dry_run && secrets.R2_ENDPOINT || '' }}
       R2_BUCKET: ${{ !inputs.dry_run && secrets.R2_BUCKET || '' }}
       GROUP: ${{ matrix.group }}
+      PART: ${{ matrix.part }}
+      PARTS: ${{ matrix.parts }}
       SHARDS_SHA: ${{ needs.plan.outputs.shards_sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -86,7 +90,7 @@ jobs:
       - name: Cut, verify, upload
         run: |
           DRY=(); [ "${{ inputs.dry_run }}" = "true" ] && DRY=(--dry-run)
-          "$RUNNER_TEMP/venv/bin/python" scripts/basemap_regions.py run --selector "$SELECTOR" --group "$GROUP" \
+          "$RUNNER_TEMP/venv/bin/python" scripts/basemap_regions.py run --selector "$SELECTOR" --group "$GROUP" --part "$PART" --parts "$PARTS" \
             --planet-version "$PLANET_VERSION" --shards-sha "$SHARDS_SHA" --maxzoom "$MAXZOOM" \
             --work "$RUNNER_TEMP/work" "${DRY[@]}"
           df -h / | tail -1
@@ -94,7 +98,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: manifest-${{ matrix.group }}
+          name: manifest-${{ matrix.group }}-${{ matrix.part }}
           path: ${{ runner.temp }}/work/manifest-*.json
           if-no-files-found: ignore
           retention-days: 14
