@@ -29,6 +29,8 @@ BLM terms (from the dataset record): cite the BLM as the source; describe modifi
 - `osm_trail_classes.tsv`: OSM `highway` -> 5 road, 15 track, 25 foot trail. Burn order 25, 15, 5, so the lower value wins where lines overlap.
 - `entry_point_classes.tsv`: the `highway` values whose way end nodes become trailhead (entry) points; the class set found in the reference server's `trail_entry_points` over Idaho.
 - `agency_line_classes.tsv`: USFS and BLM attribute codes -> trails value. Proposed, not reviewed: these lines change routes against an OSM-only build (`AGENCY_LINES=0`).
+- MVUM fields kept (`scripts/offroad/prep_mvum.py`, roads and trails alike; each access field has a `*_DATESOPEN` pair, and the pack stores status and dates as two columns): `E_BIKE_CLASS1` (mountain bike), `ATV` (quad), `HIGHCLEARANCEVEHICLE`, `MOTORCYCLE` (dirt bike), `FOURWD_GT50INCHES` and `TWOWD_GT50INCHES` (side-by-side). The pack's `mvum` columns: `mtb_*`, `atv_*`, `veh_*`, `moto_*`, `gt50_4wd_*`, `gt50_2wd_*` (`_status`, `_dates`).
+- Which travel mode reads which field: Dirt bike uses `MOTORCYCLE`; Quad uses `ATV`; Side-by-side opens a trail when `FOURWD_GT50INCHES` or `TWOWD_GT50INCHES` is open, each on its own dates (`OTHER_OHV_GT50INCHES` is for vehicles that are neither wheeled nor tracked and is not used). Packs from before this rebuild have none of the new columns: the app then reads Dirt bike as ATV and Side-by-side as high-clearance vehicle, and says so in the route notes.
 - MVUM backfill (`scripts/offroad/prep_mvum.py`): a trail with no shape takes the NFS segments with the same `TRAIL_NO` and `TRAIL_NAME`, within the forest's `ADMIN_ORG` 4-character prefix learned from shaped trails, falling back to number and name alone.
 
 ## Grid
@@ -50,9 +52,18 @@ Outputs in `WORK/out/`. Publishing is a separate step and needs the owner's go.
 
 Options:
 - `OFFROAD_PACK`: a prebuilt `offroad_pack` (built in the same rust image) instead of building it from `CACHE_SRC`.
-- `LAND_ACCESS=none`, for regions outside the US: PAD-US, USFS and BLM do not cover them, so they are not fetched; `barriers`, `wilderness` and MVUM are empty, agency lines are off, `ATTRIBUTION.json` lists only the sources used, and the pack's meta has `cov_land_access = none`, `cov_mvum = none` and a `land_rules` note (land access unknown; the router's `land_rules_unknown` case).
+- `LAND_ACCESS=none`, for regions outside the US: PAD-US, USFS and BLM do not cover them, so they are not fetched; `barriers`, `wilderness` and MVUM are empty, agency lines are off, `ATTRIBUTION.json` lists only the sources used, and the pack's meta has `land_access = none` and `cov_land_access = none` (both written by `offroad_pack --land-access`; `us` writes both as `us`), `cov_mvum = none`, `cov_mvum = none` and a `land_rules` note (land access unknown; the router's `land_rules_unknown` case).
 - `OSM_PBF.sources`: when `OSM_PBF` was merged from several extracts, one line per extract (path, md5, size, replication timestamp), copied into `in/osm/source.txt` and so into `ATTRIBUTION.json`.
 - Step `smoke` (not in the default list), with `SMOKE="lat,lon lat,lon"`: one foot route with `offroad_pack route` (the `SqlitePack` and `PmtilesElevation` readers), plus `inspect`; output in `WORK/smoke.txt`.
+
+## USFS MVUM class definitions
+
+Quoted from the attribute definitions in the USFS Enterprise Data Warehouse metadata for the MVUM trails layer (the roads layer defines the same fields): https://data.fs.usda.gov/geodata/edw/edw_resources/meta/Trans_MVUM_Trail.xml (read 2026-11-23). In each, the value `open` means "Open for use to a vehicle described as:" the text below; the matching `*_DATESOPEN` field holds the dates the route is open to that class.
+
+- `ATV`: "An off-highway vehicle (OHV) less than or equal to 50 inches in width with three or more low-pressure tires, handle-bar steering and a seat designed to be straddled by the operator."
+- `MOTORCYCLE`: "Two-wheeled vehicles on which the two wheels are inline, not side-by-side."
+- `FOURWD_GT50INCHES`: "An off-highway vehicle (OHV) greater than 50 inches in width that operates on four wheels and with a drive train that allows all four wheels to receive power from the engine simultaneously."
+- `TWOWD_GT50INCHES`: "An off-highway vehicle (OHV) greater than 50 inches in width that operates on four wheels and with a drive train that allows two wheels to receive power from the engine simultaneously."
 
 ## GitHub Actions (`.github/workflows/offroad-regions.yml`)
 

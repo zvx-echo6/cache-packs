@@ -206,12 +206,13 @@ pack() {
     /t/release/offroad_pack build-sources --out /w/out/offroad.sqlite --bbox "$s" --threads "$CPUS" \
       --coverage-pmtiles /w/out/elevation.pmtiles --class-dir /w/in/worldcover --class-friction /r/rules/offroad/class_friction.tsv \
       --trails /w/work/r/trails.tif --barriers /w/work/r/barriers.tif --wilderness /w/work/r/wilderness.tif \
-      --parking /w/work/parking.tsv --entry-points /w/work/entry_points.tsv --mvum /w/work/mvum.geojsonl
+      --parking /w/work/parking.tsv --entry-points /w/work/entry_points.tsv --mvum /w/work/mvum.geojsonl \
+      --land-access "$LAND_ACCESS"
   if [ "$LAND_ACCESS" = none ]; then
-    # the spec's coverage keys (cov_land_access, cov_mvum): no land-access or MVUM data anywhere in this pack
+    # offroad_pack writes land_access and cov_land_access itself; the coverage key cov_mvum and the land_rules note: no MVUM data anywhere in this pack
     run "$IMG_PY" python3 -I -c 'import sqlite3,sys
 c=sqlite3.connect(sys.argv[1])
-c.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)",[("cov_land_access","none"),("cov_mvum","none"),
+c.executemany("INSERT OR REPLACE INTO meta VALUES (?,?)",[("cov_mvum","none"),
  ("land_rules","unknown: no land-ownership, wilderness or motor-vehicle data was used (land_rules_unknown)")])
 c.commit()' /w/out/offroad.sqlite
   fi
