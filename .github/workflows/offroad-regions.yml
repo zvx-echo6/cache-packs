@@ -10,10 +10,9 @@ on:
       release:
         description: Pre-release tag the files are staged in
         default: offroad-2026-11
-      # bump to the main commit that contains feat/offroad-pack-mvum once merged
       cache_ref:
-        description: Commit of the Cache repo that offroad_pack is built from (default the rel-30 merge that has build-sources)
-        default: 69784fd602047946b95436d49891ea29a8d81664
+        description: Commit of the Cache repo that offroad_pack is built from (default the cache main commit d2ff55bc that has the MVUM columns and build-sources)
+        default: d2ff55bc3c2dbffc1e58d92e88cd086b11918dd2
       regions:
         description: Regions to build, comma-separated (empty = all)
         default: ""
