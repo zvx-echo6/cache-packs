@@ -93,7 +93,7 @@ jobs:
             bbox: "-118.0,41.5,-110.3,49.5"
             extracts: "us/idaho us/montana us/wyoming us/utah us/nevada us/oregon us/washington canada/british-columbia"
             land_access: us
-            smoke: "44.050,-115.700 44.085,-115.660"
+            smoke: "44.081,-115.607 44.110,-115.572"
           - region: wyoming
             bbox: "-111.8,40.5,-103.3,45.5"
             extracts: "us/wyoming us/idaho us/montana us/utah us/colorado us/nebraska us/south-dakota"
@@ -185,6 +185,7 @@ jobs:
           REGION: ${{ matrix.region }}
           BBOX: ${{ matrix.bbox }}
           EXTRACTS: ${{ matrix.extracts }}
+          GEOFABRIK_MIRROR: https://data.cached.info/mirror/geofabrik/2026-11-24/north-america
           LAND_ACCESS: ${{ matrix.land_access }}
           RELEASE: ${{ inputs.release }}
           GH_TOKEN: ${{ github.token }}

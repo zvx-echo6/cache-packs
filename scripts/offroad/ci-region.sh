@@ -8,6 +8,13 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$(dirname "$HERE")")"
 : "${REGION:?}" "${BBOX:?}" "${EXTRACTS:?}" "${RELEASE:?}" "${OFFROAD_PACK:?}" "${RUNNER_TEMP:?}"
 GEOFABRIK=https://download.geofabrik.de/north-america
+# Optional mirror of the Geofabrik extracts (same path layout), tried first; Geofabrik is the fallback.
+MIRROR="${GEOFABRIK_MIRROR:-}"
+CURL=(curl -fL --retry 5 --retry-delay 10 --retry-all-errors -sS)
+fetch() { # fetch SUFFIX DEST: mirror first, then Geofabrik
+  if [ -n "$MIRROR" ] && "${CURL[@]}" -o "$2" "$MIRROR/$1"; then return 0; fi
+  "${CURL[@]}" -o "$2" "$GEOFABRIK/$1"
+}
 IMG_OSMIUM=cache-osmium:1
 t_start=$(date +%s)
 
@@ -33,8 +40,8 @@ files=()
 for e in $EXTRACTS; do
   [[ "$e" =~ ^[a-z-]+(/[a-z-]+)?$ ]] || { echo "bad extract $e" >&2; exit 2; }
   f="$(basename "$e")-latest.osm.pbf"
-  curl -fL --retry 5 --retry-delay 10 --retry-all-errors -sS -o "$O/$f" "$GEOFABRIK/$e-latest.osm.pbf"
-  curl -fL --retry 5 --retry-delay 10 --retry-all-errors -sS -o "$O/$f.md5" "$GEOFABRIK/$e-latest.osm.pbf.md5"
+  fetch "$e-latest.osm.pbf" "$O/$f"
+  fetch "$e-latest.osm.pbf.md5" "$O/$f.md5"
   (cd "$O" && md5sum -c --quiet "$f.md5")
   ts=$(docker run --rm -v "$O:/o:ro" "$IMG_OSMIUM" osmium fileinfo -g header.option.osmosis_replication_timestamp "/o/$f" || true)
   echo "extract:north-america/$e md5=$(cut -d' ' -f1 "$O/$f.md5") bytes=$(stat -c %s "$O/$f") replication_timestamp=$ts" >> "$O/merged.osm.pbf.sources"
