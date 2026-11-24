@@ -35,17 +35,21 @@ jobs:
           repository: zvx-echo6/cache
           ref: ${{ inputs.cache_ref }}
           path: cache-src
-          # The workspace (packages/cache_search/native) also has members in packages/cache_chunk and packages/cache_classify.
+          # The workspace (packages/cache_search/native) also has members in other packages and in server/.
           sparse-checkout: |
             packages/cache_search
             packages/cache_chunk
             packages/cache_classify
+            packages/cache_ingest
+            packages/cache_shelves
+            packages/cache_pack
+            server
           persist-credentials: false
       - name: Build offroad_pack
         run: |
           mkdir -p "$RUNNER_TEMP/target" "$RUNNER_TEMP/cargo"
-          docker run --rm -v "$PWD/cache-src/packages:/src:ro" -v "$RUNNER_TEMP/cargo:/usr/local/cargo/registry" \
-            -v "$RUNNER_TEMP/target:/t" -e CARGO_TARGET_DIR=/t -w /src/cache_search/native rust:1.99.1-slim \
+          docker run --rm -v "$PWD/cache-src:/src:ro" -v "$RUNNER_TEMP/cargo:/usr/local/cargo/registry" \
+            -v "$RUNNER_TEMP/target:/t" -e CARGO_TARGET_DIR=/t -w /src/packages/cache_search/native rust:1.99.1-slim \
             cargo build -q --locked --release -j 4 -p offroad_pack
           mkdir -p bin && cp "$RUNNER_TEMP/target/release/offroad_pack" bin/
           sha256sum bin/offroad_pack
