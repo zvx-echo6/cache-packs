@@ -185,6 +185,7 @@ jobs:
           REGION: ${{ matrix.region }}
           BBOX: ${{ matrix.bbox }}
           EXTRACTS: ${{ matrix.extracts }}
+          GEOFABRIK_MIRROR: https://data.cached.info/mirror/geofabrik/2026-11-24/north-america
           LAND_ACCESS: ${{ matrix.land_access }}
           RELEASE: ${{ inputs.release }}
           GH_TOKEN: ${{ github.token }}
