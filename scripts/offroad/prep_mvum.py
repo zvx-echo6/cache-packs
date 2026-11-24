@@ -19,6 +19,9 @@ from osgeo import ogr, osr
 
 FIELDS_ROAD = ["SYMBOL", "SEASONAL", "OPERATIONALMAINTLEVEL", "E_BIKE_CLASS1", "E_BIKE_CLASS1_DUR", "ATV", "ATV_DATESOPEN",
                "HIGHCLEARANCEVEHICLE", "HIGHCLEARANCEVEHICLE_DATESOPEN"]
+# motorcycle: the dirt bike; fourwd_gt50inches / twowd_gt50inches: the side-by-side (open to either); each has its own dates pair.
+FIELDS_ROAD += ["MOTORCYCLE", "MOTORCYCLE_DATESOPEN", "FOURWD_GT50INCHES", "FOURWD_GT50_DATESOPEN", "TWOWD_GT50INCHES",
+                "TWOWD_GT50_DATESOPEN"]
 FIELDS_TRAIL = [f for f in FIELDS_ROAD if f != "OPERATIONALMAINTLEVEL"]
 
 ogr.UseExceptions()
