@@ -89,6 +89,11 @@ jobs:
             extracts: "us/utah us/idaho us/wyoming us/colorado us/arizona us/nevada us/new-mexico"
             land_access: us
             smoke: "40.700,-110.885 40.735,-110.850"
+          - region: idaho
+            bbox: "-118.0,41.5,-110.3,49.5"
+            extracts: "us/idaho us/montana us/wyoming us/utah us/nevada us/oregon us/washington canada/british-columbia"
+            land_access: us
+            smoke: "44.050,-115.700 44.085,-115.660"
           - region: wyoming
             bbox: "-111.8,40.5,-103.3,45.5"
             extracts: "us/wyoming us/idaho us/montana us/utah us/colorado us/nebraska us/south-dakota"
