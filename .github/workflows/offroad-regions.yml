@@ -21,7 +21,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: offroad-regions
+  group: offroad-regions-${{ inputs.release }}
   cancel-in-progress: false
 
 jobs:
@@ -191,18 +191,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           OFFROAD_PACK: ${{ runner.temp }}/bin/offroad_pack
         run: scripts/offroad/ci-region.sh
-      - name: Keep the elevation extract as an artifact (4 KB parity test only)
-        if: steps.want.outputs.go == '1'
-        run: |
-          mkdir -p "$RUNNER_TEMP/elev"
-          cp "$(cat "$RUNNER_TEMP/workdir")/out/elevation.pmtiles" "$RUNNER_TEMP/elev/${{ matrix.region }}-elevation.pmtiles"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: steps.want.outputs.go == '1'
-        with:
-          name: elevation-${{ matrix.region }}
-          path: ${{ runner.temp }}/elev/${{ matrix.region }}-elevation.pmtiles
-          retention-days: 3
-          compression-level: 0
       - name: Smoke route (cache_offroad readers)
         if: steps.want.outputs.go == '1'
         env:
